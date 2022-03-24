@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <bitset>
+
 using namespace std;
 
 
@@ -20,7 +21,25 @@ using namespace std;
  * Además, por algún motivo igual de misterioso admite instrucciones con solo 2 parámetros como el MOV sin un tercer parámetro basura
  * 
  * Para añadir instrucciones al repertorio o modificar las ya existentes, hacerlo en la función tradBinario
+ * 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+
+
+
+
+
+class instruccion
+{
+    private:
+
+
+    public:
+        std::string to_string ()
+        {
+            
+        }
+};
 
 
 
