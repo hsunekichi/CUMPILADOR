@@ -1,3 +1,0 @@
-git add .			// Añade todo lo que haya cambiado en el directorio al repo interno
-git commit			// Captura lo que se ha añadido en el repo interno en una copia segura
-git push			// Copia las confirmaciones del dir interno al externo
