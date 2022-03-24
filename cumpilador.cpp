@@ -25,9 +25,9 @@ using namespace std;
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 
-
-
-
+const bool HEX_OUT = 1;                 // Da la salida en hexadecimal en lugar de en binario
+const bool LOGISIM_OUT = 1;             // Imprime la salida en un formato compatible con la rom de logisim
+const int MAX_PARAMETROS = 4;           // Número máximo de tokens que puede tener una instrucción del repertorio (ADD r1, r2, r2 -> MAX_PARAMETROS = 4)
 
 class instruccion
 {
@@ -40,6 +40,98 @@ class instruccion
             
         }
 };
+
+
+
+
+
+// Convierte un string binario en uno hexadecimal
+
+string binToHex (string binario)
+{
+	string final = "";                              // String para rellenar con el hexadecimal
+    string aux, relleno = "0000";                   // Strings auxiliares
+    int bitsTot = binario.length();                 // Tamaño del binario
+	int resto = bitsTot % 4;                        // Calcula el relleno que hace falta
+
+    if (resto != 0)                                 // Se necesita relleno
+    {
+        relleno.erase(0, resto);                    // Crea el relleno necesario hasta que sea múltiplo de 4
+	    binario = relleno + binario;                // Completa el binario con relleno
+    }   
+
+	for (int i = 0; i < bitsTot; i += 4)            // Convierte el string completo, de 4 en 4 bits
+	{
+		aux = binario.substr(i,4);
+
+		if (aux == "0000")
+		{
+			final += "0";
+		}
+		else if (aux == "0001")
+		{
+			final += "1";
+		}
+		else if (aux == "0010")
+		{
+			final += "2";
+		}
+		else if (aux == "0011")
+		{
+			final += "3";
+		}
+		else if (aux == "0100")
+		{
+			final += "4";
+		}
+		else if (aux == "0101")
+		{
+			final += "5";
+		}
+		else if (aux == "0110")
+		{
+			final += "6";
+		}
+		else if (aux == "0111")
+		{
+			final += "7";
+		}
+		else if (aux == "1000")
+		{
+			final += "8";
+		}
+		else if (aux == "1001")
+		{
+			final += "9";
+		}
+		else if (aux == "1010")
+		{
+			final += "A";
+		}
+		else if (aux == "1011")
+		{
+			final += "B";
+		}
+		else if (aux == "1100")
+		{
+			final += "C";
+		}
+		else if (aux == "1101")
+		{
+			final += "D";
+		}
+		else if (aux == "1110")
+		{
+			final += "E";
+		}
+		else if (aux == "1111")
+		{
+			final += "F";
+		}
+	}
+
+	return final;
+}
 
 
 
@@ -94,39 +186,67 @@ string tradBinario (string inst, string param1, string param2, string param3)   
 
 int main(int argc, char * argv[])
 {
-    ifstream entrada;
-    
-    if (argc == 2)                          // Se ha introducido un parámetro
+    ifstream f_entrada;
+    ofstream f_salida;
+
+    if (argc == 3)                            // Se ha introducido un parámetro
     {
-        entrada.open(argv[1]);
+        f_entrada.open(argv[1]);              // Fichero de entrada
+        f_salida.open(argv[2]);               // Fichero de salida      
 
-        if (entrada.is_open())              // El fichero existía
+        if (f_entrada.is_open() && f_salida.is_open())         // El fichero existía
         {
-            string linea, inst, param1, param2, param3;                 // Variables para leer y tokenizar la instrucción
+            string linea, inst[MAX_PARAMETROS];                         // Variables para leer y tokenizar la instrucción
             string etiqueta;                                            // Variable para leer etiquetas de salto
+            bool vacio;                                                 // Finaliza el bucle de tokenizado de parámetros, cuando la instrucción tiene menos de MAX_PARAMETROS
             int i_PC = 0;                                               // Lleva la cuenta del número de línea para almacenar etiquetas de salto
+            int posEspacio;                                             // Lleva la cuenta del número de línea para almacenar etiquetas de salto
 
-            getline (entrada, linea);                                   // Lee la primera línea
+            if (LOGISIM_OUT)                                            // Imprime la cabecera de memoria de logisim
+            {
+                f_salida << "v2.0 raw\n";
+            }
+
+            getline (f_entrada, linea);                                   // Lee la primera línea
             i_PC++;                                                     // Incrementa el contador de instrucción (Para etiquetas de salto)
 
-            while (!entrada.eof())
+            while (!f_entrada.eof())
             {
                 if (linea.find(" ") != -1)                              // Es una instrucción 
                 {
-                    inst = linea.substr(0, linea.find(" "));                    // Almacena la operación
-                    linea = linea.substr(linea.find(" ") + 1);
+                    vacio = false;
 
-                    param1 = linea.substr(0, linea.find(" "));                  // Almacena el primer parámetro
-                    linea = linea.substr(linea.find(" ") + 1);
+                    for (int i = 0; !vacio; i++)                                   // Mientras queden parámetros
+                    {
+                        posEspacio = linea.find(" ");
+                        inst [i] = linea.substr(0, posEspacio);                    // Almacena el parámetro hasta el primer espacio
+                        
+                        if (posEspacio != -1)                                      // Quedan parámetros
+                        {
+                            linea.erase(0, posEspacio + 1);                        // Elimina todo hasta el primer espacio, incluido
+                        }
+                        else
+                        {
+                            vacio = true;
+                        }
+                    }      
 
-                    param2 = linea.substr(0, linea.find(" "));                  // Almacena el segundo parámetro
-                    linea = linea.substr(linea.find(" ") + 1);
+                    string salida = tradBinario (inst[0], inst[1], inst[2], inst[3]);           // Traduce la instrucción a binario
 
-                    param3 = linea;                                             // Almacena el tercer parámetro
+                    if (HEX_OUT)                                                // Transforma la instrucción en hexadecimal
+                    {
+                        salida = binToHex (salida);
+                    }
 
-                    string salida = tradBinario (inst, param1, param2, param3);
-
-                    cout << salida << endl;
+                    if (LOGISIM_OUT)                                            // Código para rom de logisim
+                    {
+                        f_salida << salida << " ";
+                    }
+                    else                                                        // Código estándar
+                    {
+                        f_salida << salida << endl;
+                    }
+                    
                 }   
                 else                                                    // Es una etiqueta de salto
                 {
@@ -134,7 +254,7 @@ int main(int argc, char * argv[])
                     // almacenar par (etiqueta, i_PC)                                    
                 }
 
-                getline (entrada, linea);                           // Lee la siguiente línea
+                getline (f_entrada, linea);                           // Lee la siguiente línea
                 i_PC++;                                             // Incrementa el contador de instrucción (Para etiquetas de salto)
             }
         }
@@ -145,6 +265,6 @@ int main(int argc, char * argv[])
     }
     else                // Parámetros incorrectos
     {
-        cerr << "Invocar como: ./cumpilador.exe nombre_fichero" << endl;
+        cerr << "Invocar como: ./cumpilador.exe fichero_entrada fichero_salida" << endl;
     }
 }
