@@ -151,7 +151,7 @@ string tradBinario (string inst, string param1, string param2, string param3)   
         string reg2 = param2.substr(1);             // Elimina la r del número de registro (r1 -> 1)
         string reg3 = param3.substr(1);             // Elimina la r del número de registro (r1 -> 1)
 
-        bitset<6> instBin {"000001"};                // Código de la instrucción
+        bitset<6> instBin {"000001"};               // Código de la instrucción
         bitset<5> param1Bin {stoi(reg1)};           // Parámetro 1
         bitset<5> param2Bin {stoi(reg2)};           // Parámetro 2
         bitset<5> param3Bin {stoi(reg3)};           // Parámetro 3
@@ -164,14 +164,14 @@ string tradBinario (string inst, string param1, string param2, string param3)   
     }
     else if (inst == "MOV")
     {
-        string reg1 = param1.substr(1);             // Elimina la r del número de registro (r1 -> 1)
+        string reg1 = param1.substr(1);                     // Elimina la r del número de registro (r1 -> 1)
 
         bitset<6> instBin {"000000"};
-        bitset<5> param1Bin {stoi(reg1)};         // Parámetro 1
-        bitset<16> param2Bin {stoi(param2)};         // Parámetro 2
+        bitset<5> param1Bin {stoi(reg1)};                   // Parámetro 1
+        bitset<16> param2Bin {stoi(param2)};                // Parámetro 2
 
         string relleno = "";
-        for (int i = 0; i < 5; i++) relleno += "0";            // Crea el relleno para completar la instrucción
+        for (int i = 0; i < 5; i++) relleno += "0";         // Crea el relleno para completar la instrucción
 
         // Genera la instrucción completa
         instruccion = instBin.to_string() + param1Bin.to_string() + param2Bin.to_string() + relleno ;        
@@ -212,7 +212,7 @@ int main(int argc, char * argv[])
 
             while (!f_entrada.eof())
             {
-                if (linea.find(" ") != -1)                              // Es una instrucción 
+                if (linea != "" && linea.find(" ") != -1)                              // Es una instrucción 
                 {
                     vacio = false;
 
@@ -248,7 +248,7 @@ int main(int argc, char * argv[])
                     }
                     
                 }   
-                else                                                    // Es una etiqueta de salto
+                else if (linea != "")                                                   // Es una etiqueta de salto
                 {
                     etiqueta = linea; 
                     // almacenar par (etiqueta, i_PC)                                    
