@@ -1,16 +1,13 @@
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <bitset>
-
-using namespace std;
-
-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *
+ * Hecho por: Hugo Mateo
+ * Última revisión: 28/03/2022
+ * 
  * Sintaxis de instrucciones: INST PARAM1 PARAM2 PARAM3
  * Ej: ADD r1 r2 r2        
- * Actualmente el compilador solo admite instrucciones de 3 parámetros (el MOV debe tener un parámetro basura). 
+ * Una palabra única, sin parámetros, es una etiqueta que apunta a la siguiente instrucción
+ * Ej: estoEsUnaEtiqueta
+ *     estoEs UnaInstrucción 
  * 
  * El compilador admite etiquetas de salto, aunque actualmente no hacen nada
  * El compilador no admite etiquetas para posiciones de memoria
@@ -25,29 +22,154 @@ using namespace std;
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 
+
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <bitset>
+
+using namespace std;
+
+
+
 const bool HEX_OUT = 1;                 // Da la salida en hexadecimal en lugar de en binario
 const bool LOGISIM_OUT = 1;             // Imprime la salida en un formato compatible con la rom de logisim
 const int MAX_PARAMETROS = 4;           // Número máximo de tokens que puede tener una instrucción del repertorio (ADD r1, r2, r2 -> MAX_PARAMETROS = 4)
 
+
+
+struct exception_wrong_instruction_syntax
+{
+    string instruction;
+};
+
+
+
+struct exception_wrong_number_of_parameters
+{
+    string instruction;
+};
+
+
+
 class instruccion
+{
+    public:
+
+        virtual std::string&& to_string () = 0;                  // Devuelve la instrucción ensamblador, legible por humanos
+
+        virtual std::string&& to_bin () = 0;                     // Ensambla la instrucción y la devuelve en binario, legible por la máquina
+
+        std::string to_hex ()                                    // Ensambla la instrucción y la devuelve en hexadecimal, legible por la máquina
+        {
+            return binToHex (this->to_bin());
+        }
+};
+
+class ADD : public instruccion
 {
     private:
 
+        const std::string operacion = "ADD";           // Nombre de la instrucción
+
+        // Formato de instrucción
+        const bitset<6> operacionBin {"000001"};       // Código de la instrucción
+        bitset<5> rdBin;                               // Registro destino, en binario
+        bitset<5> raBin;                               // Registro origen a, en binario
+        bitset<5> rbBin;                               // Registro origen b, en binario
+        const bitset<11> rellenoBin {0};               // Relleno
 
     public:
-        std::string to_string ()
+
+        ADD (string rd, string ra, string rb) : rdBin {stoi(rd.substr(1))},                                       // Elimina la r inicial y lo convierte a int (r1 -> 1)
+                                                    raBin {stoi(ra.substr(1))}, 
+                                                    rbBin {stoi(rb.substr(1))} {}
+
+        ADD (ADD&& oldInst) : rdBin {oldInst.rdBin}, raBin {oldInst.raBin},  rbBin {oldInst.rbBin}{}              //Constructor de transferencia
+
+
+        std::string&& to_string ()                                                                                // Devuelve la instrucción ensamblador, legible por humanos
         {
-            
+            return operacion + " r" + std::to_string(rdBin.to_ulong()) + " r" + std::to_string(raBin.to_ulong()) +  + " r" + std::to_string(rbBin.to_ulong());
+        }
+
+        std::string&& to_bin ()                                                                                   // Ensambla la instrucción y la devuelve en binario, legible por la máquina
+        {
+            return operacionBin.to_string() + rdBin.to_string() + raBin.to_string() + rbBin.to_string() + rellenoBin.to_string();
+        }
+};
+
+class MOV : public instruccion
+{
+    private:
+
+        const std::string operacion = "MOV";           // Nombre de la instrucción
+
+        // Formato de instrucción
+        const bitset<6> operacionBin {"000000"};       // Código de la instrucción
+        bitset<5> rdBin;                               // Registro destino, en binario
+        bitset<16> kBin;                               // Constante de la instrucción
+        const bitset<5> rellenoBin {0};                // Relleno
+
+    public:
+
+        MOV (string rd, string k) : rdBin {stoi(rd.substr(1))},                             // Elimina la r inicial y lo convierte a int (r1 -> 1)
+                                                        kBin {stoi(k.substr(1))}            // Elimina el # inicial y lo convierte a int
+                                                        {}
+
+        MOV (MOV&& oldInst) : rdBin {oldInst.rdBin}, kBin {oldInst.kBin}{}                  // Constructor de transferencia
+
+        std::string&& to_string ()                                                          // Devuelve la instrucción ensamblador, legible por humanos
+        {
+            return operacion + " r" + std::to_string(rdBin.to_ulong()) + " #" + std::to_string(kBin.to_ulong());
+        }
+
+        std::string&& to_bin ()                                                             // Ensambla la instrucción y la devuelve en binario, legible por la máquina
+        {
+            return operacionBin.to_string() + rdBin.to_string() + kBin.to_string() + rellenoBin.to_string();
         }
 };
 
 
 
+// Factoría de instrucciones
+// nParametros es el número de parámetros inc
 
+instruccion&& crearInst (string parametros[MAX_PARAMETROS], int nParametros)
+{
+    if (parametros[0] == "ADD")                                                 // ADD
+    {
+        if (nParametros == 4)
+        {
+            return ADD (parametros[1], parametros[2], parametros[3]);
+        }
+        else
+        {
+            exception_wrong_number_of_parameters exc;
+            throw exc;
+        }
+    }
+    else if (parametros[0] == "MOV")                                            // MOV
+    {
+        if (nParametros == 3)
+        return MOV (parametros[1], parametros[2]);
+        else
+        {
+            exception_wrong_number_of_parameters exc;
+            throw exc;
+
+        }
+    }
+    else                                                                        // Error
+    {
+        exception_wrong_instruction_syntax exc;
+        throw exc;
+    }
+}
 
 // Convierte un string binario en uno hexadecimal
 
-string binToHex (string binario)
+string&& binToHex (string binario)
 {
 	string final = "";                              // String para rellenar con el hexadecimal
     string aux, relleno = "0000";                   // Strings auxiliares
@@ -135,12 +257,10 @@ string binToHex (string binario)
 
 
 
-
-
 // Traduce los parámetros a una instrucción en binario completa.
 // Modificar aquí la sintaxis del ensamblador
 
-string tradBinario (string inst, string param1, string param2, string param3)        //Necesitará tener acceso al diccionario de etiquetas de salto
+string ensamblar (string inst, string param1, string param2, string param3)        //Necesitará tener acceso al diccionario de etiquetas de salto
 {   
     string instruccion = "";
 
@@ -179,8 +299,6 @@ string tradBinario (string inst, string param1, string param2, string param3)   
 
     return instruccion;
 }
-
-
 
 
 
@@ -231,7 +349,7 @@ int main(int argc, char * argv[])
                         }
                     }      
 
-                    string salida = tradBinario (inst[0], inst[1], inst[2], inst[3]);           // Traduce la instrucción a binario
+                    string salida = ensamblar (inst[0], inst[1], inst[2], inst[3]);           // Traduce la instrucción a binario
 
                     if (HEX_OUT)                                                // Transforma la instrucción en hexadecimal
                     {
