@@ -1,7 +1,8 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *
  * Hecho por: Hugo Mateo
- * Última revisión: 28/03/2022
+ * Colavorador: Mario Ortega
+ * Última revisión: 30/03/2022
  * 
  * Sintaxis de instrucciones: INST PARAM1 PARAM2 PARAM3
  * Ej: ADD r1 r2 r2        
@@ -130,6 +131,31 @@ class MOV : public instruccion
         }
 };
 
+class LW : public instruccion
+{
+    private:
+        const std::string operacion = "LW";             //Nombre de la instrucción
+
+        //Formato de la instrucción
+        const bitset<6> operacionBin {"000010"};
+        bitset<5> rdBin;                                //Registro destino
+        bitset<16> rsBin;                               //Registro con la dirección de memoria de la que se va a leer
+        const bitset<5> rellenoBin {0};
+
+    public:
+        LW(string rd, string rs) : rdBin {stoi(rd.substr(1))}, rsBin {stoi(rs.substr(1))} {}
+        LW(LW&& oldInst) : rdBin {oldInst.rdBin}, rsBin {oldInst.rsBin} {}      //Constructor de transferencia
+
+        std::string&& to_string ()                                                                                // Devuelve la instrucción ensamblador, legible por humanos
+        {
+            return operacion + " r" + std::to_string(rdBin.to_ulong()) + " #" + std::to_string(rsBin.to_ulong());
+        }
+
+        std::string&& to_bin ()                                                                                //Ensambla la instrucción y la devuelve en binario, legible por la máquina
+        {
+            return operacionBin.to_string() + rdBin.to_string() + rsBin.to_string() + rellenoBin.to_string();
+        }
+};
 
 
 // Factoría de instrucciones
