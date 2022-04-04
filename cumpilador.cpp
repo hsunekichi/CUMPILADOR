@@ -2,23 +2,21 @@
  *
  * Hecho por: Hugo Mateo
  * Colavorador: Mario Ortega
- * Última revisión: 30/03/2022
+ * Última revisión: 04/04/2022
  * 
  * Sintaxis de instrucciones: INST PARAM1 PARAM2 PARAM3
  * Ej: ADD r1 r2 r2        
- * Una palabra única, sin parámetros, es una etiqueta que apunta a la siguiente instrucción
+ * Una palabra única, sin parámetros, es una etiqueta que apunta a la siguiente instrucción válida (no etiqueta)
  * Ej: estoEsUnaEtiqueta
- *     estoEs UnaInstrucción 
+ *     estoEs UnaInstrucción con parámetros
+ * Para añadir instrucciones al repertorio o modificar las ya existentes, hacerlo en la función tradBinario
  * 
- * El compilador admite etiquetas de salto, aunque actualmente no hacen nada
  * El compilador no admite etiquetas para posiciones de memoria
- * El compilador ni comprueba ni notifica errores de sintaxis en el código ASM
+ * El compilador solo comprueba algunos errores de sintaxis
  * 
  * Por algún motivo si separas los registros con ", " o "," en vez de con " " funciona correctamente, 
  *      lo cual es mejor pero es preocupante que lo haga sin pretenderlo 
  * Además, por algún motivo igual de misterioso admite instrucciones con solo 2 parámetros como el MOV sin un tercer parámetro basura
- * 
- * Para añadir instrucciones al repertorio o modificar las ya existentes, hacerlo en la función tradBinario
  * 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -29,6 +27,7 @@
 #include <string>
 #include <bitset>
 #include <map>
+#include <sstream>
 
 using namespace std;
 
@@ -57,6 +56,30 @@ struct exception_wrong_number_of_parameters
 
 
 
+// Funciones auxiliares
+
+// Convierte un bitset a un string hexadecimal
+
+string binToHex (bitset<TAMANYO_INSTRUCCION> binario)
+{
+    stringstream hexadecimal;
+    hexadecimal << hex << uppercase << binario.to_ulong();
+    return hexadecimal.str();
+}
+
+
+// Convierte un string binario a un string hexadecimal
+
+string binSToHex (string binarioString)
+{
+    bitset<TAMANYO_INSTRUCCION> binario {binarioString};
+    stringstream hexadecimal;
+    hexadecimal << hex << uppercase << binario.to_ulong();
+    return hexadecimal.str();
+}
+
+
+
 // Clases
 
 class instruccion
@@ -67,9 +90,9 @@ class instruccion
 
         virtual std::string to_bin () = 0;                     // Ensambla la instrucción y la devuelve en binario, legible por la máquina
 
-        std::string to_hex ()                                    // Ensambla la instrucción y la devuelve en hexadecimal, legible por la máquina
+        std::string to_hex ()                                  // Ensambla la instrucción y la devuelve en hexadecimal, legible por la máquina
         {
-            return binToHex (this->to_bin());
+            return binSToHex (this->to_bin());
         }
 };
 
@@ -143,27 +166,19 @@ class LW : public instruccion
         const bitset<5> rellenoBin {0};
 
     public:
-<<<<<<< HEAD
 
         LW (string rd, string rs) : rdBin {stoi(rd.substr(1))}, rsBin {stoi(rs.substr(1))} {}
 
-        std::string&& to_string ()                                                                             // Devuelve la instrucción ensamblador, legible por humanos
-=======
-        LW(string rd, string rs) : rdBin {stoi(rd.substr(1))}, rsBin {stoi(rs.substr(1))} {}
-        LW(LW&& oldInst) : rdBin {oldInst.rdBin}, rsBin {oldInst.rsBin} {}      //Constructor de transferencia
-
-        std::string&& to_string ()                                                                                // Devuelve la instrucción ensamblador, legible por humanos
->>>>>>> 1667d6590c7dd77911524c984d3ae41e09aaea2d
+        std::string to_string ()                                                                             // Devuelve la instrucción ensamblador, legible por humanos
         {
             return operacion + " r" + std::to_string(rdBin.to_ulong()) + " #" + std::to_string(rsBin.to_ulong());
         }
 
-        std::string&& to_bin ()                                                                                //Ensambla la instrucción y la devuelve en binario, legible por la máquina
+        std::string to_bin ()                                                                                //Ensambla la instrucción y la devuelve en binario, legible por la máquina
         {
             return operacionBin.to_string() + rdBin.to_string() + rsBin.to_string() + rellenoBin.to_string();
         }
 };
-<<<<<<< HEAD
 
 class BEQ : public instruccion
 {
@@ -181,7 +196,7 @@ class BEQ : public instruccion
 
     public:
 
-        MOV (string ra, string rb, string _etiqueta) : raBin {stoi(ra.substr(1))},             // Elimina la r inicial y lo convierte a int (r1 -> 1)
+        BEQ (string ra, string rb, string _etiqueta) : raBin {stoi(ra.substr(1))},             // Elimina la r inicial y lo convierte a int (r1 -> 1)
                                                         rbBin {stoi(rb.substr(1))},            // Elimina el # inicial y lo convierte a int
                                                         etiqueta {_etiqueta}                   // Crea la etiqueta
                                                         {}
@@ -192,18 +207,16 @@ class BEQ : public instruccion
         }
 
         std::string to_bin ()                                                                  // Ensambla la instrucción y la devuelve en binario, legible por la máquina
-        {
-            kBin {etiquetas[etiqueta]};                                                        // Obtiene la dirección de salto de la etiqueta
+        {   
+            kBin = etiquetas[etiqueta];                                                        // Obtiene la dirección de salto de la etiqueta                       
             return operacionBin.to_string() + raBin.to_string() + rbBin.to_string() + kBin.to_string();
         }
 };
 
-=======
->>>>>>> 1667d6590c7dd77911524c984d3ae41e09aaea2d
 
 
 // Factoría de instrucciones
-// nParametros es el número de parámetros inc
+// nParametros es el número de parámetros que contiene el vector (incluido el nombre de la instrucción)
 
 instruccion* crearInst (string parametros[MAX_PARAMETROS], int nParametros)
 {
@@ -236,17 +249,6 @@ instruccion* crearInst (string parametros[MAX_PARAMETROS], int nParametros)
         exception_wrong_instruction_syntax exc;
         throw exc;
     }
-}
-
-
-
-// Convierte un bitset a un string hexadecimal
-
-string binToHex (bitset<TAMANYO_INSTRUCCION> binario)
-{
-    stringstream hexadecimal;
-    hexadecimal << hex << uppercase << binario.to_ulong();
-    return hexadecimal.str();
 }
 
 
@@ -308,7 +310,7 @@ int main(int argc, char * argv[])
 
         if (f_entrada.is_open() && f_salida.is_open())                  // El fichero existía
         {
-            string linea, inst[MAX_PARAMETROS];                         // Variables para leer y tokenizar la instrucción
+            string linea, param[MAX_PARAMETROS];                         // Variables para leer y tokenizar la instrucción
             string etiqueta;                                            // Variable para leer etiquetas de salto
             bool vacio;                                                 // Finaliza el bucle de tokenizado de parámetros, cuando la instrucción tiene menos de MAX_PARAMETROS
             int i_PC = 1;                                               // Lleva la cuenta del número de línea para almacenar etiquetas de salto
@@ -331,7 +333,7 @@ int main(int argc, char * argv[])
                     for ( ; !vacio; nParametros++)                                 // Mientras queden parámetros
                     {
                         posEspacio = linea.find(" ");
-                        inst [nParametros] = linea.substr(0, posEspacio);          // Almacena el parámetro hasta el primer espacio
+                        param [nParametros] = linea.substr(0, posEspacio);          // Almacena el parámetro hasta el primer espacio
                         
                         if (posEspacio != -1)                                      // Quedan parámetros
                         {
@@ -344,7 +346,7 @@ int main(int argc, char * argv[])
                     }      
                     nParametros--;                                                 // Decrementa el número de parámetros, para corregir nParametros++ final del for
 
-                    instruccion* inst = crearInst (inst, nParametros);             // Crea la instrucción
+                    instruccion* inst = crearInst (param, nParametros);             // Crea la instrucción
 
                     string salida = inst->to_hex();                                // Traduce la instrucción a hexadecimal
 
