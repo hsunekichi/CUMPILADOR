@@ -1,7 +1,8 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *
  * Hecho por: Hugo Mateo
- * Última revisión: 28/03/2022
+ * Colavorador: Mario Ortega
+ * Última revisión: 30/03/2022
  * 
  * Sintaxis de instrucciones: INST PARAM1 PARAM2 PARAM3
  * Ej: ADD r1 r2 r2        
@@ -142,10 +143,17 @@ class LW : public instruccion
         const bitset<5> rellenoBin {0};
 
     public:
+<<<<<<< HEAD
 
         LW (string rd, string rs) : rdBin {stoi(rd.substr(1))}, rsBin {stoi(rs.substr(1))} {}
 
         std::string&& to_string ()                                                                             // Devuelve la instrucción ensamblador, legible por humanos
+=======
+        LW(string rd, string rs) : rdBin {stoi(rd.substr(1))}, rsBin {stoi(rs.substr(1))} {}
+        LW(LW&& oldInst) : rdBin {oldInst.rdBin}, rsBin {oldInst.rsBin} {}      //Constructor de transferencia
+
+        std::string&& to_string ()                                                                                // Devuelve la instrucción ensamblador, legible por humanos
+>>>>>>> 1667d6590c7dd77911524c984d3ae41e09aaea2d
         {
             return operacion + " r" + std::to_string(rdBin.to_ulong()) + " #" + std::to_string(rsBin.to_ulong());
         }
@@ -155,6 +163,7 @@ class LW : public instruccion
             return operacionBin.to_string() + rdBin.to_string() + rsBin.to_string() + rellenoBin.to_string();
         }
 };
+<<<<<<< HEAD
 
 class BEQ : public instruccion
 {
@@ -189,6 +198,8 @@ class BEQ : public instruccion
         }
 };
 
+=======
+>>>>>>> 1667d6590c7dd77911524c984d3ae41e09aaea2d
 
 
 // Factoría de instrucciones
