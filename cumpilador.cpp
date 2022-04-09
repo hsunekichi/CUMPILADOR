@@ -1,22 +1,26 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *
  * Hecho por: Hugo Mateo
- * Colavorador: Mario Ortega
- * Última revisión: 04/04/2022
+ * Colaborador: Mario Ortega
+ * Última revisión: 09/04/2022
  * 
  * Sintaxis de instrucciones: INST PARAM1 PARAM2 PARAM3
  * Ej: ADD r1 r2 r2        
  * Una palabra única, sin parámetros, es una etiqueta que apunta a la siguiente instrucción válida (no etiqueta)
  * Ej: estoEsUnaEtiqueta
  *     estoEs UnaInstrucción con parámetros
- * Para añadir instrucciones al repertorio o modificar las ya existentes, hacerlo en la función tradBinario
+ * La última línea debe terminar con un fín de línea, si no no reconocerá la última instrucción
+ * 
+ * 
+ * Para añadir instrucciones al repertorio o modificar las ya existentes, 
+ *     crear las clases correspondientes (hijas de "instruccion") y añadirlas a factoría de instrucciones "crearInst"
+ * 
  * 
  * El compilador no admite etiquetas para posiciones de memoria
- * El compilador solo comprueba algunos errores de sintaxis
+ * El compilador comprueba algunos errores de sintaxis, pero es aún muy limitado al dar información sobre ellos
  * 
  * Por algún motivo si separas los registros con ", " o "," en vez de con " " funciona correctamente, 
- *      lo cual es mejor pero es preocupante que lo haga sin pretenderlo 
- * Además, por algún motivo igual de misterioso admite instrucciones con solo 2 parámetros como el MOV sin un tercer parámetro basura
+ *      lo cual es preferible pero es preocupante que lo haga sin pretenderlo 
  * 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -27,6 +31,7 @@
 #include <string>
 #include <bitset>
 #include <map>
+#include <list>
 #include <sstream>
 
 using namespace std;
@@ -38,20 +43,22 @@ const bool LOGISIM_OUT = 1;             // Imprime la salida en un formato compa
 const int MAX_PARAMETROS = 4;           // Número máximo de tokens que puede tener una instrucción del repertorio (ADD r1, r2, r2 -> MAX_PARAMETROS = 4)
 const int TAMANYO_INSTRUCCION = 32;     // Tamaño de una instrucción en bits
 
-map <string, int> etiquetas;            // Diccionario global de dirección-etiqueta
+map <string, int> g_etiquetas;            // Diccionario global de dirección-etiqueta
 
 
 
 // Excepciones
 
-struct exception_wrong_instruction_syntax
+struct exception_wrong_instruction_syntax : exception
 {
     string instruction;
+    int linea;
 };
 
-struct exception_wrong_number_of_parameters
+struct exception_wrong_number_of_parameters : exception
 {
     string instruction;
+    int linea;
 };
 
 
@@ -111,7 +118,7 @@ class ADD : public instruccion
 
     public:
 
-        ADD (string rd, string ra, string rb) : rdBin {stoi(rd.substr(1))},                                       // Elimina la r inicial y lo convierte a int (r1 -> 1)
+        ADD (string rd, string ra, string rb) : rdBin {stoi(rd.substr(1))},                                     // Elimina la r inicial y lo convierte a int (r1 -> 1)
                                                     raBin {stoi(ra.substr(1))}, 
                                                     rbBin {stoi(rb.substr(1))} {}
 
@@ -143,12 +150,12 @@ class MOV : public instruccion
         MOV (string rd, string k) : rdBin {stoi(rd.substr(1))},                             // Elimina la r inicial y lo convierte a int (r1 -> 1)
                                                         kBin {stoi(k.substr(1))}            // Elimina el # inicial y lo convierte a int
                                                         {}
-        std::string to_string ()                                                          // Devuelve la instrucción ensamblador, legible por humanos
+        std::string to_string ()                                                            // Devuelve la instrucción ensamblador, legible por humanos
         {
             return operacion + " r" + std::to_string(rdBin.to_ulong()) + " #" + std::to_string(kBin.to_ulong());
         }
 
-        std::string to_bin ()                                                             // Ensambla la instrucción y la devuelve en binario, legible por la máquina
+        std::string to_bin ()                                                               // Ensambla la instrucción y la devuelve en binario, legible por la máquina
         {
             return operacionBin.to_string() + rdBin.to_string() + kBin.to_string() + rellenoBin.to_string();
         }
@@ -157,13 +164,14 @@ class MOV : public instruccion
 class LW : public instruccion
 {
     private:
-        const std::string operacion = "LW";             //Nombre de la instrucción
+
+        const std::string operacion = "LW";             // Nombre de la instrucción
 
         //Formato de la instrucción
         const bitset<6> operacionBin {"000010"};
-        bitset<5> rdBin;                                //Registro destino
-        bitset<16> rsBin;                               //Registro con la dirección de memoria de la que se va a leer
-        const bitset<5> rellenoBin {0};
+        bitset<5> rdBin;                                // Registro destino
+        bitset<5> rsBin;                                // Registro con la dirección de memoria de la que se va a leer
+        const bitset<16> rellenoBin {0};                // Relleno
 
     public:
 
@@ -174,7 +182,7 @@ class LW : public instruccion
             return operacion + " r" + std::to_string(rdBin.to_ulong()) + " #" + std::to_string(rsBin.to_ulong());
         }
 
-        std::string to_bin ()                                                                                //Ensambla la instrucción y la devuelve en binario, legible por la máquina
+        std::string to_bin ()                                                                                // Ensambla la instrucción y la devuelve en binario, legible por la máquina
         {
             return operacionBin.to_string() + rdBin.to_string() + rsBin.to_string() + rellenoBin.to_string();
         }
@@ -208,7 +216,7 @@ class BEQ : public instruccion
 
         std::string to_bin ()                                                                  // Ensambla la instrucción y la devuelve en binario, legible por la máquina
         {   
-            kBin = etiquetas[etiqueta];                                                        // Obtiene la dirección de salto de la etiqueta                       
+            kBin = g_etiquetas[etiqueta];                                                        // Obtiene la dirección de salto de la etiqueta                       
             return operacionBin.to_string() + raBin.to_string() + rbBin.to_string() + kBin.to_string();
         }
 };
@@ -218,7 +226,7 @@ class BEQ : public instruccion
 // Factoría de instrucciones
 // nParametros es el número de parámetros que contiene el vector (incluido el nombre de la instrucción)
 
-instruccion* crearInst (string parametros[MAX_PARAMETROS], int nParametros)
+instruccion* crearInst (string parametros[MAX_PARAMETROS], int nParametros, int i_linea)
 {
     if (parametros[0] == "ADD")                                                 // ADD
     {
@@ -229,6 +237,8 @@ instruccion* crearInst (string parametros[MAX_PARAMETROS], int nParametros)
         else
         {
             exception_wrong_number_of_parameters exc;
+            exc.instruction = parametros [0];
+            exc.linea = i_linea;
             throw exc;
         }
     }
@@ -241,6 +251,36 @@ instruccion* crearInst (string parametros[MAX_PARAMETROS], int nParametros)
         else
         {
             exception_wrong_number_of_parameters exc;
+            exc.instruction = parametros [0];
+            exc.linea = i_linea;
+            throw exc;
+        }
+    }
+    else if (parametros[0] == "LW")                                             // LW
+    {
+        if (nParametros == 3)
+        {
+            return new LW (parametros[1], parametros[2]);
+        }
+        else
+        {
+            exception_wrong_number_of_parameters exc;
+            exc.instruction = parametros [0];
+            exc.linea = i_linea;
+            throw exc;
+        }
+    }
+    else if (parametros[0] == "BEQ")                                            // BEQ
+    {
+        if (nParametros == 4)
+        {
+            return new BEQ (parametros[1], parametros[2], parametros[3]);
+        }
+        else
+        {
+            exception_wrong_number_of_parameters exc;
+            exc.instruction = parametros [0];
+            exc.linea = i_linea;
             throw exc;
         }
     }
@@ -249,51 +289,6 @@ instruccion* crearInst (string parametros[MAX_PARAMETROS], int nParametros)
         exception_wrong_instruction_syntax exc;
         throw exc;
     }
-}
-
-
-
-// Traduce los parámetros a una instrucción en binario completa.
-// Modificar aquí la sintaxis del ensamblador
-
-string ensamblar (string inst, string param1, string param2, string param3)        //Necesitará tener acceso al diccionario de etiquetas de salto
-{   
-    string instruccion = "";
-
-    if (inst == "ADD")
-    {
-
-        string reg1 = param1.substr(1);             // Elimina la r del número de registro (r1 -> 1)
-        string reg2 = param2.substr(1);             // Elimina la r del número de registro (r1 -> 1)
-        string reg3 = param3.substr(1);             // Elimina la r del número de registro (r1 -> 1)
-
-        bitset<6> instBin {"000001"};               // Código de la instrucción
-        bitset<5> param1Bin {stoi(reg1)};           // Parámetro 1
-        bitset<5> param2Bin {stoi(reg2)};           // Parámetro 2
-        bitset<5> param3Bin {stoi(reg3)};           // Parámetro 3
-
-        string relleno = "";
-        for (int i = 0; i < 11; i++) relleno += "0";            // Crea el relleno para completar la instrucción
-
-        // Genera la instrucción completa
-        instruccion = instBin.to_string() + param1Bin.to_string() + param2Bin.to_string() + param3Bin.to_string() + relleno;     
-    }
-    else if (inst == "MOV")
-    {
-        string reg1 = param1.substr(1);                     // Elimina la r del número de registro (r1 -> 1)
-
-        bitset<6> instBin {"000000"};
-        bitset<5> param1Bin {stoi(reg1)};                   // Parámetro 1
-        bitset<16> param2Bin {stoi(param2)};                // Parámetro 2
-
-        string relleno = "";
-        for (int i = 0; i < 5; i++) relleno += "0";         // Crea el relleno para completar la instrucción
-
-        // Genera la instrucción completa
-        instruccion = instBin.to_string() + param1Bin.to_string() + param2Bin.to_string() + relleno ;        
-    }
-
-    return instruccion;
 }
 
 
@@ -310,65 +305,89 @@ int main(int argc, char * argv[])
 
         if (f_entrada.is_open() && f_salida.is_open())                  // El fichero existía
         {
-            string linea, param[MAX_PARAMETROS];                         // Variables para leer y tokenizar la instrucción
-            string etiqueta;                                            // Variable para leer etiquetas de salto
-            bool vacio;                                                 // Finaliza el bucle de tokenizado de parámetros, cuando la instrucción tiene menos de MAX_PARAMETROS
-            int i_PC = 1;                                               // Lleva la cuenta del número de línea para almacenar etiquetas de salto
-            int posEspacio;                                             // Lleva la cuenta del número de línea para almacenar etiquetas de salto
-
-            if (LOGISIM_OUT)                                            // Imprime la cabecera de memoria de logisim
+            try
             {
-                f_salida << "v2.0 raw\n";
-            }
+                string linea, param[MAX_PARAMETROS];                        // Variables para leer y tokenizar la instrucción
+                string etiqueta;                                            // Variable para leer etiquetas de salto
+                string salida;                                              // Variable para almacenar la instrucción ya traducida a binario
+                bool vacio;                                                 // Finaliza el bucle de tokenizado de parámetros, cuando la instrucción tiene menos de MAX_PARAMETROS
+                int i_PC = 0;                                               // Lleva la cuenta del número de línea para almacenar etiquetas de salto
+                int posEspacio;                                             // Lleva la cuenta del número de línea para almacenar etiquetas de salto
+                list <instruccion*> codigo;                                 // Lista de instrucciones del repertorio
 
-            getline (f_entrada, linea);                                 // Lee la primera línea
 
-            while (!f_entrada.eof())
-            {
-                if (linea != "" && linea.find(" ") != -1)                          // Es una instrucción 
+                if (LOGISIM_OUT)                                            // Imprime la cabecera de memoria de logisim
                 {
-                    vacio = false;
+                    f_salida << "v2.0 raw\n";
+                }
 
-                    int nParametros = 0;                                           // Número de parámetros de la instrucción
-                    for ( ; !vacio; nParametros++)                                 // Mientras queden parámetros
+                getline (f_entrada, linea);                                 // Lee la primera línea
+
+                while (!f_entrada.eof())
+                {
+                    if (linea != "" && linea.find(" ") != -1)                          // Es una instrucción 
                     {
-                        posEspacio = linea.find(" ");
-                        param [nParametros] = linea.substr(0, posEspacio);          // Almacena el parámetro hasta el primer espacio
-                        
-                        if (posEspacio != -1)                                      // Quedan parámetros
-                        {
-                            linea.erase(0, posEspacio + 1);                        // Elimina todo hasta el primer espacio, incluido
-                        }
-                        else
-                        {
-                            vacio = true;
-                        }
-                    }      
-                    nParametros--;                                                 // Decrementa el número de parámetros, para corregir nParametros++ final del for
+                        vacio = false;
 
-                    instruccion* inst = crearInst (param, nParametros);             // Crea la instrucción
+                        int nParametros = 0;                                           // Número de parámetros de la instrucción
+                        for ( ; !vacio; nParametros++)                                 // Mientras queden parámetros
+                        {
+                            posEspacio = linea.find(" ");
+                            param [nParametros] = linea.substr(0, posEspacio);         // Almacena el parámetro hasta el primer espacio
+                            
+                            if (posEspacio != -1)                                      // Quedan parámetros
+                            {
+                                linea.erase(0, posEspacio + 1);                        // Elimina todo hasta el primer espacio, incluido
+                            }
+                            else
+                            {
+                                vacio = true;
+                            }
+                        }      
 
-                    string salida = inst->to_hex();                                // Traduce la instrucción a hexadecimal
+                        instruccion* inst = crearInst (param, nParametros, i_PC);      // Crea la instrucción
+                        codigo.push_back(inst);                                        // Añade la instrucción a la lista de instrucciones
+
+                        i_PC++;                                                        // Incrementa el contador de instrucción (Para etiquetas de salto)
+                    }   
+                    else if (linea != "")                                   // Es una etiqueta de salto
+                    {
+                        etiqueta = linea; 
+                        g_etiquetas[etiqueta] = i_PC;                                  // Almacenar par (etiqueta, i_PC)                                    
+                    }
+
+                    getline (f_entrada, linea);                                        // Lee la siguiente línea
+                }
+
+                for (instruccion *inst : codigo)                            // Recorre la lista de instrucciones
+                {
+                    if (HEX_OUT)
+                    {
+                        salida = inst->to_hex();                            // Traduce la instrucción a hexadecimal
+                    }
+                    else
+                    {
+                        salida = inst->to_bin();                            // Traduce la instrucción a binario
+                    }
 
                     // Imprime la instrucción en la salida
-                    if (LOGISIM_OUT)                                               // Código para rom de logisim
+                    if (LOGISIM_OUT)                                        // Código para rom de logisim
                     {
                         f_salida << salida << " ";
                     }
-                    else                                                           // Código estándar
+                    else                                                    // Código estándar
                     {
                         f_salida << salida << endl;
                     }
-
-                    i_PC++;                                                        // Incrementa el contador de instrucción (Para etiquetas de salto)
-                }   
-                else if (linea != "")                                   // Es una etiqueta de salto
-                {
-                    etiqueta = linea; 
-                    etiquetas[etiqueta] = i_PC;                                    // almacenar par (etiqueta, i_PC)                                    
                 }
-
-                getline (f_entrada, linea);                                        // Lee la siguiente línea
+            }
+            catch (exception_wrong_instruction_syntax& e)
+            {
+                cout << "Sintaxis incorrecta en la línea: " << e.linea << endl << "Se encontró: " << e.instruction << endl;
+            }
+            catch (exception_wrong_number_of_parameters& e)
+            {
+                cout << "Número de parámetros incorrecto en la instrucción: " << e.instruction << ", línea: " << e.linea << endl;
             }
         }
         else            // Fichero incorrecto 
