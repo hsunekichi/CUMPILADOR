@@ -43,7 +43,7 @@ const bool LOGISIM_OUT = 1;             // Imprime la salida en un formato compa
 const int MAX_PARAMETROS = 4;           // Número máximo de tokens que puede tener una instrucción del repertorio (ADD r1, r2, r2 -> MAX_PARAMETROS = 4)
 const int TAMANYO_INSTRUCCION = 32;     // Tamaño de una instrucción en bits
 
-map <string, int> g_etiquetas;            // Diccionario global de dirección-etiqueta
+map <string, int> g_etiquetas;          // Diccionario global de dirección-etiqueta
 
 
 
