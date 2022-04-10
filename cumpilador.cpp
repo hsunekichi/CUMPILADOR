@@ -38,8 +38,8 @@ using namespace std;
 
 
 
-const bool HEX_OUT = 1;                 // Da la salida en hexadecimal en lugar de en binario
-const bool LOGISIM_OUT = 1;             // Imprime la salida en un formato compatible con la rom de logisim
+const bool HEX_OUT = 0;                 // Da la salida en hexadecimal en lugar de en binario
+const bool LOGISIM_OUT = 0;             // Imprime la salida en un formato compatible con la rom de logisim
 const int MAX_PARAMETROS = 4;           // Número máximo de tokens que puede tener una instrucción del repertorio (ADD r1, r2, r2 -> MAX_PARAMETROS = 4)
 const int TAMANYO_INSTRUCCION = 32;     // Tamaño de una instrucción en bits
 
@@ -118,18 +118,18 @@ class ADD : public instruccion
 
     public:
 
-        ADD (string rd, string ra, string rb) : rdBin {stoi(rd.substr(1))},                                     // Elimina la r inicial y lo convierte a int (r1 -> 1)
+        ADD (string ra, string rb, string rd) : rdBin {stoi(rd.substr(1))},                                     // Elimina la r inicial y lo convierte a int (r1 -> 1)
                                                     raBin {stoi(ra.substr(1))}, 
                                                     rbBin {stoi(rb.substr(1))} {}
 
         std::string to_string ()                                                                                // Devuelve la instrucción ensamblador, legible por humanos
         {
-            return operacion + " r" + std::to_string(rdBin.to_ulong()) + " r" + std::to_string(raBin.to_ulong()) +  + " r" + std::to_string(rbBin.to_ulong());
+            return operacion + " r" + std::to_string(raBin.to_ulong()) + " r" + std::to_string(rbBin.to_ulong()) +  + " r" + std::to_string(rdBin.to_ulong());
         }
 
         std::string to_bin ()                                                                                   // Ensambla la instrucción y la devuelve en binario, legible por la máquina
         {
-            return operacionBin.to_string() + rdBin.to_string() + raBin.to_string() + rbBin.to_string() + rellenoBin.to_string();
+            return operacionBin.to_string() + raBin.to_string() + rbBin.to_string() + rdBin.to_string() + rellenoBin.to_string();
         }
 };
 
@@ -141,23 +141,23 @@ class MOV : public instruccion
 
         // Formato de instrucción
         const bitset<6> operacionBin {"000000"};       // Código de la instrucción
-        bitset<5> rdBin;                               // Registro destino, en binario
+        bitset<5> rbBin;                               // Registro destino, en binario
         bitset<16> kBin;                               // Constante de la instrucción
         const bitset<5> rellenoBin {0};                // Relleno
 
     public:
 
-        MOV (string rd, string k) : rdBin {stoi(rd.substr(1))},                             // Elimina la r inicial y lo convierte a int (r1 -> 1)
+        MOV (string rd, string k) : rbBin {stoi(rd.substr(1))},                             // Elimina la r inicial y lo convierte a int (r1 -> 1)
                                                         kBin {stoi(k.substr(1))}            // Elimina el # inicial y lo convierte a int
                                                         {}
         std::string to_string ()                                                            // Devuelve la instrucción ensamblador, legible por humanos
         {
-            return operacion + " r" + std::to_string(rdBin.to_ulong()) + " #" + std::to_string(kBin.to_ulong());
+            return operacion + " r" + std::to_string(rbBin.to_ulong()) + " #" + std::to_string(kBin.to_ulong());
         }
 
         std::string to_bin ()                                                               // Ensambla la instrucción y la devuelve en binario, legible por la máquina
         {
-            return operacionBin.to_string() + rdBin.to_string() + kBin.to_string() + rellenoBin.to_string();
+            return operacionBin.to_string() + rellenoBin.to_string() + rbBin.to_string() + kBin.to_string();
         }
 };
 
@@ -169,22 +169,22 @@ class LW : public instruccion
 
         //Formato de la instrucción
         const bitset<6> operacionBin {"000010"};
-        bitset<5> rdBin;                                // Registro destino
-        bitset<5> rsBin;                                // Registro con la dirección de memoria de la que se va a leer
+        bitset<5> rbBin;                                // Registro destino
+        bitset<5> raBin;                                // Registro con la dirección de memoria de la que se va a leer
         const bitset<16> rellenoBin {0};                // Relleno
 
     public:
 
-        LW (string rd, string rs) : rdBin {stoi(rd.substr(1))}, rsBin {stoi(rs.substr(1))} {}
+        LW (string ra, string rb) : raBin {stoi(ra.substr(1))}, rbBin {stoi(rb.substr(1))} {}
 
         std::string to_string ()                                                                             // Devuelve la instrucción ensamblador, legible por humanos
         {
-            return operacion + " r" + std::to_string(rdBin.to_ulong()) + " #" + std::to_string(rsBin.to_ulong());
+            return operacion + " r" + std::to_string(raBin.to_ulong()) + " r" + std::to_string(rbBin.to_ulong());
         }
 
         std::string to_bin ()                                                                                // Ensambla la instrucción y la devuelve en binario, legible por la máquina
         {
-            return operacionBin.to_string() + rdBin.to_string() + rsBin.to_string() + rellenoBin.to_string();
+            return operacionBin.to_string() + raBin.to_string() + rbBin.to_string() + rellenoBin.to_string();
         }
 };
 
@@ -192,10 +192,10 @@ class BEQ : public instruccion
 {
     private:
 
-        const std::string operacion = "MOV";           // Nombre de la instrucción
+        const std::string operacion = "BEQ";           // Nombre de la instrucción
 
         // Formato de instrucción
-        const bitset<6> operacionBin {"000011"};       // Código de la instrucción
+        const bitset<6> operacionBin {"000100"};       // Código de la instrucción
         bitset<5> raBin;                               // Registro de origen a en binario
         bitset<5> rbBin;                               // Registro de origen b en binario
 
@@ -216,8 +216,35 @@ class BEQ : public instruccion
 
         std::string to_bin ()                                                                  // Ensambla la instrucción y la devuelve en binario, legible por la máquina
         {   
-            kBin = g_etiquetas[etiqueta];                                                        // Obtiene la dirección de salto de la etiqueta                       
+            kBin = g_etiquetas[etiqueta];                                                      // Obtiene la dirección de salto de la etiqueta                       
             return operacionBin.to_string() + raBin.to_string() + rbBin.to_string() + kBin.to_string();
+        }
+};
+
+class SW : public instruccion
+{
+    private:
+
+        const std::string operacion = "SW";             // Nombre de la instrucción
+
+        //Formato de la instrucción
+        const bitset<6> operacionBin {"000011"};
+        bitset<5> raBin;                                // Registro destino
+        bitset<5> rbBin;                                // Registro con la dirección de memoria de la que se va a leer
+        const bitset<16> rellenoBin {0};                // Relleno
+
+    public:
+
+        SW (string ra, string rb) : raBin {stoi(ra.substr(1))}, rbBin {stoi(rb.substr(1))} {}
+
+        std::string to_string ()                                                                             // Devuelve la instrucción ensamblador, legible por humanos
+        {
+            return operacion + " r" + std::to_string(raBin.to_ulong()) + " r" + std::to_string(rbBin.to_ulong());
+        }
+
+        std::string to_bin ()                                                                                // Ensambla la instrucción y la devuelve en binario, legible por la máquina
+        {
+            return operacionBin.to_string() + raBin.to_string() + rbBin.to_string() + rellenoBin.to_string();
         }
 };
 
@@ -275,6 +302,20 @@ instruccion* crearInst (string parametros[MAX_PARAMETROS], int nParametros, int 
         if (nParametros == 4)
         {
             return new BEQ (parametros[1], parametros[2], parametros[3]);
+        }
+        else
+        {
+            exception_wrong_number_of_parameters exc;
+            exc.instruction = parametros [0];
+            exc.linea = i_linea;
+            throw exc;
+        }
+    }
+    else if (parametros[0] == "SW")                                            // BEQ
+    {
+        if (nParametros == 3)
+        {
+            return new SW (parametros[1], parametros[2]);
         }
         else
         {
