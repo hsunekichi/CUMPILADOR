@@ -2,7 +2,7 @@
  *
  * Hecho por: Hugo Mateo
  * Colaborador: Mario Ortega
- * Última revisión: 09/04/2022
+ * Última revisión: 10/04/2022
  * 
  * Sintaxis de instrucciones: INST PARAM1 PARAM2 PARAM3
  * Ej: ADD r1 r2 r2        
@@ -17,6 +17,11 @@
  *     crear las clases correspondientes (hijas de "instruccion") y añadirlas a factoría de instrucciones "crearInst"
  * 
  * 
+ *    Mejoras a pendientes:
+ * El compilador no admite un fichero de configuración que simplifique la definición del ASM
+ * Los errores indican la línea en la que están, pero esas líneas obvian etiquetas y líneas en blanco por lo que no coincide del todo con el código
+ * El compilador no admite caracteres poniendo '', ni hexadecimal poniendo 0x
+ * El compilador no admite comentarios
  * El compilador no admite etiquetas para posiciones de memoria
  * El compilador comprueba algunos errores de sintaxis, pero es aún muy limitado al dar información sobre ellos
  * 
