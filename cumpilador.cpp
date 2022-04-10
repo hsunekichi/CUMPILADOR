@@ -359,7 +359,7 @@ instruccion* crearInst (string parametros[MAX_PARAMETROS], int nParametros, int 
     {
         if (nParametros >= 1)
         {
-            return new NOP (parametros[1], parametros[2]);
+            return new NOP (parametros[1]);
         }
         else
         {
