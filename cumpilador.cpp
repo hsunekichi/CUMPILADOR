@@ -9,6 +9,7 @@
  * Una palabra única, sin parámetros, es una etiqueta que apunta a la siguiente instrucción válida (no etiqueta)
  * Ej: estoEsUnaEtiqueta
  *     estoEs UnaInstrucción con parámetros
+ * Por ello las instrucciones sin parámetros como la NOP deben tener un parámetro vacío
  * La última línea debe terminar con un fín de línea, si no no reconocerá la última instrucción
  * 
  * 
@@ -248,6 +249,30 @@ class SW : public instruccion
         }
 };
 
+class NOP : public instruccion
+{
+    private:
+
+        const std::string operacion = "NOP";            // Nombre de la instrucción
+
+        //Formato de la instrucción
+        const bitset<6> operacionBin {"000101"};
+        const bitset<26> rellenoBin {0};                // Relleno
+
+    public:
+
+        NOP (string ra) {}
+
+        std::string to_string ()                                                                             // Devuelve la instrucción ensamblador, legible por humanos
+        {
+            return operacion;
+        }
+
+        std::string to_bin ()                                                                                // Ensambla la instrucción y la devuelve en binario, legible por la máquina
+        {
+            return operacionBin.to_string() + rellenoBin.to_string();
+        }
+};
 
 
 // Factoría de instrucciones
@@ -316,6 +341,20 @@ instruccion* crearInst (string parametros[MAX_PARAMETROS], int nParametros, int 
         if (nParametros == 3)
         {
             return new SW (parametros[1], parametros[2]);
+        }
+        else
+        {
+            exception_wrong_number_of_parameters exc;
+            exc.instruction = parametros [0];
+            exc.linea = i_linea;
+            throw exc;
+        }
+    }
+    else if (parametros[0] == "NOP")                                            // BEQ
+    {
+        if (nParametros >= 1)
+        {
+            return new NOP (parametros[1], parametros[2]);
         }
         else
         {
