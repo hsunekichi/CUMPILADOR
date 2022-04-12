@@ -1,33 +1,42 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *
  * Hecho por: Hugo Mateo
- * Última revisión: 12/04/2022
+ * Última revisión: 13/04/2022
  * 
  * Sintaxis de la configuración ASM: 
- * NomInst<000> raXXXXXX rbXXXXXX &000 etiqueta_saltoXXXXX #XXXXX
- * Generará una instrucción de nombre NomInst que tendrá como binario 000.
- * El número de X mayúsculas o 1 y 0 son el número de bits del parámetro, y un parámetro que comience con & son bits fijos de relleno.
- * Solo un parámetro que comience por & puede tener bits fijos, y no deberá tener ninguna letra (se usan solo para especificar relleno)
+ * En la primera línea deberá poner BIN o HEX, dependiendo de la salida deseada.
+ * Si la segunda línea es LOGISIM_OUT (puede no serlo), la salida tendrá sintaxis logisim
  * 
- * Así, un ejemplo de uso usando el registro 1 y 2 y la dirección de salto "salto1" (siendo salto1 = 4) quedará:
- * NomInst ra1 rb2 salto1 #4
- * binario:
- * 000 00001 00010 000 00100 00100
- * (Se ha separado el binario con espacios por motivos ilustrativos)
+ * Primero va el nombre de la instrucción, con su codificación entre < >.
+ * Tras ello van los parámetros. Las XXXX tras una palabra son bits indeterminados que 
+ *      serán sustituidos por el valor que haya tras la palabra.
  * 
- * Una palabra única, sin parámetros, es una etiqueta que apunta a la siguiente instrucción válida (no etiqueta)
- * Ej: estoEsUnaEtiqueta
- *     estoEs UnaInstrucción con parámetros
- * Por ello las instrucciones sin parámetros como la NOP deben tener un parámetro vacío
- * La última línea debe terminar con un fín de línea, si no no reconocerá la última instrucción
+ * Un parámetro que comience con # será o bien un valor (que comience por #) o bien una etiqueta.
+ * Un parámetro que comience con & será relleno fijo, y deberá especificarse su valor en la configuración
+ *     con 1s y 0s. En la programación ASM el parámetro no aparecerá.
+ * Al programar, una línea con un solo parámetro será una etiqueta.
+ * Si una etiqueta tiene un =, se le asignará el valor que la siga.
+ * Si no tiene un = se le asignará la posición de la siguiente instrucción válida (se obvian todas las etiquetas).
+ * Por tanto, toda instrucción tiene que tener al menos un parámetro además del nombre.
+ * 
+ * Algunos ejemplos de configuración y su uso:
+ *     MOV<000001> rXXXXX &00000 #XXXXXXXXXXXXXXXX
+ *     MOV r1 #3
+ *     salto=0x100
+ *     MOV r3 salto
+ * 
+ *     BEQ<000011> raXXXXX rbXXXXX #XXXXXXXXXXXXXXXX 
+ *     fin
+ *     BEQ ra0 rb0 fin
  * 
  * NOTA: Los bits de tamaño de instrucción totales deben definirse antes de la compilación
+ * --------------------NOTA: La última línea de todos los ficheros debe terminar en \n, si no se perderá--------------------
  * 
  * 
  *    Mejoras pendientes:
- * El compilador no admite caracteres poniendo '', ni hexadecimal poniendo 0x
  * El compilador no admite comentarios
- * El compilador no admite etiquetas para posiciones de memoria
+ * 
+ * 
  * 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -114,16 +123,16 @@ class exception_wrong_instruction_syntax : public exception
     }
 };
 
-class exception_wrong_jump_label : public exception
+class exception_wrong_label : public exception
 {
     public:
 
     string msg;
 
-    exception_wrong_jump_label (string etiqueta, int linea)
+    exception_wrong_label (string etiqueta, int linea)
     {
         stringstream ss;
-        ss << "Etiqueta de salto desconocida \"" << etiqueta << "\" en la linea " << linea;
+        ss << "Etiqueta desconocida \"" << etiqueta << "\" en la linea " << linea;
         msg = ss.str();
     }
 
@@ -174,6 +183,31 @@ string binSToHex (string binarioString)
     stringstream hexadecimal;
     hexadecimal << hex << uppercase << binario.to_ulong();
     return hexadecimal.str();
+}
+
+
+
+// Convierte un string a decimal
+// El string puede ser un decimal, hexadecimal comenzado con 0x o un caracter entre ''
+
+int to_decimal(string numero)
+{
+    if (numero[0] == '0' && numero[1] == 'x')                               // Hexadecimal
+    {
+        int decimal;
+        stringstream ss;
+        ss << numero;
+        ss >> hex >> decimal;
+        return decimal;
+    }
+    else if  (numero[0] == '\'' && numero[numero.length()-1] == '\'')       // Caracter
+    {
+        return numero[1];
+    }
+    else                                                                    // Decimal
+    {
+        return stoi(numero);
+    }
 }
 
 
@@ -236,17 +270,23 @@ class instruccion
 
             for (int str = 1, tok = 1; str < gl_instrucciones[nombre].size(); str++)
             {   
-                if (gl_instrucciones[nombre][str].substr(0, 14) == "etiqueta_salto")             // Es una etiqueta de salto
+                if (gl_instrucciones[nombre][str][0] == '#')                        // Es una constante
                 {
-                    if (gl_etiquetas.find(tokens[tok]) == gl_etiquetas.end())                              // La etiqueta no existe
+                    int direccion;
+                    if (tokens[tok][0] != '#')                                                             // Es una etiqueta
                     {
-                        exception_wrong_jump_label exc (tokens[tok], i_linea);
-                        throw exc;
+                        if (gl_etiquetas.find(tokens[tok]) == gl_etiquetas.end())                          // La etiqueta no existe
+                        {
+                            exception_wrong_label exc (tokens[tok], i_linea);
+                            throw exc;
+                        }
+
+                        direccion = gl_etiquetas[tokens[tok]];                                             // Obtiene la dirección de la etiqueta        
                     }
-                    
-                    int direccion = gl_etiquetas[tokens[tok]];                                             // Obtiene la dirección de la etiqueta        
+                    else direccion = to_decimal(tokens[tok].erase(0, 1));                                  // Obtiene la dirección del número
+
                     int nBits = count (gl_instrucciones[nombre][str].begin(),                              // Número de bits de la dirección
-                                        gl_instrucciones[nombre][str].end(), 'X');                         
+                                            gl_instrucciones[nombre][str].end(), 'X');     
                     bitset<TAMANYO_INSTRUCCION> direccionBinario {(long long unsigned int)direccion};      // Convierte el número a binario
 
                     for (int i = nBits - 1; i >= 0; i--)
@@ -278,7 +318,7 @@ class instruccion
                     }
 
                     string numero = tokens[tok].substr(inicioNumero);                                      // Quita los caracteres no numéricos
-                    bitset<TAMANYO_INSTRUCCION> numeroBinario {(long long unsigned int)stoi(numero)};      // Convierte el número a binario
+                    bitset<TAMANYO_INSTRUCCION> numeroBinario {(long long unsigned int)to_decimal(numero)};// Convierte el número a binario
 
                     for (int i = nBits - 1; i >= 0; i--)
                     {
@@ -334,14 +374,8 @@ int main(int argc, char * argv[])
 
             try
             {
-                if (linea == "HEX")                                             // Salida en hexadecimal
-                {
-                    HEX_OUT = true;
-                }
-                else if (linea == "BIN")                                        // Salida en binario
-                {
-                    HEX_OUT = false;
-                }
+                if (linea == "HEX") HEX_OUT = true;                             // Salida en hexadecimal
+                else if (linea == "BIN") HEX_OUT = false;                       // Salida en binario
                 else                                                            // Sintaxis incorrecta
                 {
                     exception_wrong_config_syntax exc ("La primera linea debe ser HEX o BIN");
@@ -355,32 +389,32 @@ int main(int argc, char * argv[])
                     LOGISIM_OUT = true;
                     getline (f_config, linea);                                  // Lee la siguiente línea del fichero de configuración
                 }
-                else
-                {
-                    LOGISIM_OUT = false;
-                }
+                else LOGISIM_OUT = false;
 
                 while (!f_config.eof())
                 {
-                    int pos1 = linea.find("<");                                                                              // Posición del inicio de los bits de instrucción
-                    int pos2 = linea.find(">");                                                                              // Posición del final de los bits de instrucción
-                    string nombre = linea.substr(0, pos1);                                                                   // Nombre de la instrucción
-                    string bits = linea.substr(pos1 + 1, pos2 - (pos1 + 1));                                                 // Bits de la instrucción
+                    if (linea != "")
+                    {
+                        int pos1 = linea.find("<");                                               // Posición del inicio de los bits de instrucción
+                        int pos2 = linea.find(">");                                               // Posición del final de los bits de instrucción
+                        string nombre = linea.substr(0, pos1);                                    // Nombre de la instrucción
+                        string bits = linea.substr(pos1 + 1, pos2 - (pos1 + 1));                  // Bits de la instrucción
 
-                    vector<string> estructura;                                                                               // Vector de tokens de la instrucción
-                    bits = bits + linea.substr(pos2 + 1);                                                                    // Añade los bits de la instrucción
+                        vector<string> estructura;                                                // Vector de tokens de la instrucción
+                        bits = bits + linea.substr(pos2 + 1);                                     // Añade los bits de la instrucción
 
-                    stringToVector(bits, estructura);                                                                        // Tokeniza la estructura de la instrucción
-                    gl_instrucciones [nombre] = estructura;                                                                  // Añade la estructura a la tabla de instrucciones
-                    getline (f_config, linea);                                                                               // Lee la siguiente línea del fichero de configuración
+                        stringToVector(bits, estructura);                                         // Tokeniza la estructura de la instrucción
+                        gl_instrucciones [nombre] = estructura;                                   // Añade la estructura a la tabla de instrucciones
+                    }
+
+                    getline (f_config, linea);                                                // Lee la siguiente línea del fichero de configuración
                 }
 
 
 
                 // Comienza la lectura y tokenizado del código
 
-                vector<string> param;                                       // Variables tokenizar la instrucción
-                string etiqueta;                                            // Variable para leer etiquetas de salto
+                vector<string> param;                                       // Variable para tokenizar la instrucción
                 string salida;                                              // Variable para almacenar la instrucción ya traducida a binario
                 bool vacio;                                                 // Finaliza el bucle de tokenizado de parámetros, cuando la instrucción tiene menos de MAX_PARAMETROS
                 int i_PC = 0;                                               // Lleva la cuenta del número de línea para almacenar etiquetas de salto
@@ -392,7 +426,7 @@ int main(int argc, char * argv[])
 
                 while (!f_entrada.eof())
                 {
-                    i_numLinea++;
+                    i_numLinea++;                                           // Incrementa el número de línea
 
                     if (linea != "" && linea.find(" ") != -1)                          // Es una instrucción 
                     {
@@ -408,10 +442,7 @@ int main(int argc, char * argv[])
                             {
                                 linea.erase(0, posEspacio + 1);                        // Elimina todo hasta el primer espacio, incluido
                             }
-                            else
-                            {
-                                vacio = true;
-                            }
+                            else vacio = true;
                         }    
 
                         instruccion* inst = new instruccion (param, i_numLinea);       // Crea la instrucción
@@ -422,11 +453,17 @@ int main(int argc, char * argv[])
                     }   
                     else if (linea != "")                                   // Es una etiqueta de salto
                     {
-                        etiqueta = linea; 
-                        gl_etiquetas[etiqueta] = i_PC;                                  // Almacenar par (etiqueta, i_PC)                                    
+                        if (linea.find('=') != -1)                                     // Almacena el valor de la etiqueta
+                        {
+                            gl_etiquetas[linea.substr(0, linea.find('='))] = to_decimal(linea.substr(linea.find('=') + 1));
+                        }
+                        else
+                        {
+                            gl_etiquetas[linea] = i_PC;                                // Almacena la posición de la etiqueta
+                        }                        
                     }
 
-                    getline (f_entrada, linea);                                         // Lee la siguiente línea
+                    getline (f_entrada, linea);                                        // Lee la siguiente línea
                 }
 
 
