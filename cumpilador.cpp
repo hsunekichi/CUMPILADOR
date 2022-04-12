@@ -14,20 +14,31 @@
  * Un parámetro que comience con # será o bien un valor (que comience por #) o bien una etiqueta.
  * Un parámetro que comience con & será relleno fijo, y deberá especificarse su valor en la configuración
  *     con 1s y 0s. En la programación ASM el parámetro no aparecerá.
- * Al programar, una línea con un solo parámetro será una etiqueta.
+ * Al programar, una línea sin espacios será una etiqueta.
  * Si una etiqueta tiene un =, se le asignará el valor que la siga.
  * Si no tiene un = se le asignará la posición de la siguiente instrucción válida (se obvian todas las etiquetas).
  * Por tanto, toda instrucción tiene que tener al menos un parámetro además del nombre.
  * 
  * Algunos ejemplos de configuración y su uso:
- *     MOV<000001> rXXXXX &00000 #XXXXXXXXXXXXXXXX
- *     MOV r1 #3
- *     salto=0x100
- *     MOV r3 salto
+ *  fichero configuración:
  * 
- *     BEQ<000011> raXXXXX rbXXXXX #XXXXXXXXXXXXXXXX 
+ *     HEX
+ *     LOGISIM_OUT
+ * 
+ *     MOV<000001> rXXXXX &00000 #XXXXXXXXXXXXXXXX
+ *     BEQ<000011> rXXXXX rXXXXX #XXXXXXXXXXXXXXXX  
+ *     ST<000100> rDatXXXXX rDirXXXXX &0000000000000000  
+ * 
+ * fichero programa:
+ *
+ *     MOV r1 #3
+ *     dir_pantalla=0x10f
+ *     MOV r1 dir_pantalla
+ * 
+ *     MOV r0 #'a'
+ *     ST rDat1 rDir3
  *     fin
- *     BEQ ra0 rb0 fin
+ *     BEQ r0 r0 fin
  * 
  * ------------------ ADVERTENCIA: La última línea de todos los ficheros debe terminar en \n, si no se perderá --------------------
  * 
@@ -36,7 +47,7 @@
  *    Mejoras pendientes:
  * El compilador no admite comentarios
  * 
- *    Errores conocidos:
+ *    Errores conocidos: 
  * 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
