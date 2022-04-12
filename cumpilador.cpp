@@ -29,14 +29,14 @@
  *     fin
  *     BEQ ra0 rb0 fin
  * 
- * NOTA: Los bits de tamaño de instrucción totales deben definirse antes de la compilación
- * --------------------NOTA: La última línea de todos los ficheros debe terminar en \n, si no se perderá--------------------
+ * ------------------ ADVERTENCIA: La última línea de todos los ficheros debe terminar en \n, si no se perderá --------------------
  * 
+ * NOTA: Los bits de tamaño de instrucción totales deben definirse antes de la compilación
  * 
  *    Mejoras pendientes:
  * El compilador no admite comentarios
  * 
- * 
+ *    Errores conocidos:
  * 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
