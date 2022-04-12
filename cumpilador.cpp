@@ -1,32 +1,33 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *
  * Hecho por: Hugo Mateo
- * Colaborador: Mario Ortega
- * Última revisión: 10/04/2022
+ * Última revisión: 12/04/2022
  * 
- * Sintaxis de instrucciones: INST PARAM1 PARAM2 PARAM3
- * Ej: ADD r1 r2 r2        
+ * Sintaxis de la configuración ASM: 
+ * NomInst<000> raXXXXXX rbXXXXXX &000 etiqueta_saltoXXXXX #XXXXX
+ * Generará una instrucción de nombre NomInst que tendrá como binario 000.
+ * El número de X mayúsculas o 1 y 0 son el número de bits del parámetro, y un parámetro que comience con & son bits fijos de relleno.
+ * Solo un parámetro que comience por & puede tener bits fijos, y no deberá tener ninguna letra (se usan solo para especificar relleno)
+ * 
+ * Así, un ejemplo de uso usando el registro 1 y 2 y la dirección de salto "salto1" (siendo salto1 = 4) quedará:
+ * NomInst ra1 rb2 salto1 #4
+ * binario:
+ * 000 00001 00010 000 00100 00100
+ * (Se ha separado el binario con espacios por motivos ilustrativos)
+ * 
  * Una palabra única, sin parámetros, es una etiqueta que apunta a la siguiente instrucción válida (no etiqueta)
  * Ej: estoEsUnaEtiqueta
  *     estoEs UnaInstrucción con parámetros
  * Por ello las instrucciones sin parámetros como la NOP deben tener un parámetro vacío
  * La última línea debe terminar con un fín de línea, si no no reconocerá la última instrucción
  * 
- * 
- * Para añadir instrucciones al repertorio o modificar las ya existentes, 
- *     crear las clases correspondientes (hijas de "instruccion") y añadirlas a factoría de instrucciones "crearInst"
+ * NOTA: Los bits de tamaño de instrucción totales deben definirse antes de la compilación
  * 
  * 
- *    Mejoras a pendientes:
- * El compilador no admite un fichero de configuración que simplifique la definición del ASM
- * Los errores indican la línea en la que están, pero esas líneas obvian etiquetas y líneas en blanco por lo que no coincide del todo con el código
+ *    Mejoras pendientes:
  * El compilador no admite caracteres poniendo '', ni hexadecimal poniendo 0x
  * El compilador no admite comentarios
  * El compilador no admite etiquetas para posiciones de memoria
- * El compilador comprueba algunos errores de sintaxis, pero es aún muy limitado al dar información sobre ellos
- * 
- * Por algún motivo si separas los registros con ", " o "," en vez de con " " funciona correctamente, 
- *      lo cual es preferible pero es preocupante que lo haga sin pretenderlo 
  * 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -38,33 +39,117 @@
 #include <bitset>
 #include <map>
 #include <list>
+#include <vector>
 #include <sstream>
+#include <algorithm>
 
 using namespace std;
 
 
 
-const bool HEX_OUT = 0;                 // Da la salida en hexadecimal en lugar de en binario
-const bool LOGISIM_OUT = 0;             // Imprime la salida en un formato compatible con la rom de logisim
-const int MAX_PARAMETROS = 4;           // Número máximo de tokens que puede tener una instrucción del repertorio (ADD r1, r2, r2 -> MAX_PARAMETROS = 4)
+bool HEX_OUT = 0;                       // Da la salida en hexadecimal en lugar de en binario
+bool LOGISIM_OUT = 0;                   // Imprime la salida en un formato compatible con la rom de logisim
 const int TAMANYO_INSTRUCCION = 32;     // Tamaño de una instrucción en bits
 
-map <string, int> g_etiquetas;          // Diccionario global de dirección-etiqueta
-
+map <string, int> gl_etiquetas;                      // Diccionario global de dirección-etiqueta
+map <string, vector<string>> gl_instrucciones;       // Diccionario global de instrucciones
 
 
 // Excepciones
 
-struct exception_wrong_instruction_syntax : exception
+class exception_wrong_config_syntax : public exception
 {
-    string instruction;
-    int linea;
+    public:
+
+    string msg;
+
+    exception_wrong_config_syntax(string _msg)
+    {
+        msg = _msg; 
+    }
+
+    const char * what() const throw() override
+    {
+        return msg.c_str();
+    }
 };
 
-struct exception_wrong_number_of_parameters : exception
+class exception_unknown_instruction : public exception
 {
-    string instruction;
-    int linea;
+    public:
+    
+    string msg;
+
+    exception_unknown_instruction (string instruction, int linea)
+    {
+        stringstream ss;
+        ss << "Instruccion desconocida: \"" << instruction << "\" en la linea " << linea;
+        msg = ss.str();
+    }
+
+    const char * what() const throw() override
+    {
+        
+        return msg.c_str();
+    }
+};
+
+class exception_wrong_instruction_syntax : public exception
+{
+    public:
+
+    string msg;
+
+    exception_wrong_instruction_syntax (string instruction, int linea, string encontrado, string esperado)
+    {
+        stringstream ss;
+        ss << "Error en la sintaxis de la instruccion \"" << instruction << "\" en la linea " << linea << ": Se ha encontrado \"" << 
+            encontrado << "\", se esperaba \"" << esperado << "\"";
+        msg = ss.str();
+    }
+
+    const char * what() const throw() override
+    {
+        return msg.c_str();
+    }
+};
+
+class exception_wrong_jump_label : public exception
+{
+    public:
+
+    string msg;
+
+    exception_wrong_jump_label (string etiqueta, int linea)
+    {
+        stringstream ss;
+        ss << "Etiqueta de salto desconocida \"" << etiqueta << "\" en la linea " << linea;
+        msg = ss.str();
+    }
+
+    const char * what() const throw() override
+    {
+        return msg.c_str();
+    }
+};
+
+class exception_wrong_number_of_parameters : public exception
+{
+    public:
+
+    string msg;
+
+    exception_wrong_number_of_parameters (string instruction, int linea)
+    {
+        stringstream ss;
+        ss << "Numero de parametros incorrecto en la instruccion \"" << instruction << "\" en la linea " << linea;
+        msg = ss.str();
+    }
+
+    const char * what() const throw() override
+    {
+        return msg.c_str();
+    }
 };
 
 
@@ -97,319 +182,218 @@ string binSToHex (string binarioString)
 
 class instruccion
 {
+    private:
+        
+        string nombre;                                         // Nombre de la instrucción
+        bitset<TAMANYO_INSTRUCCION> instruccionBinario;        // Instrucción final en binario
+        vector<string> tokens;                                 // Vector con los tokens de entrada de la instrucción
+        int i_linea;                                           // Número de línea de la instrucción
+
     public:
+        
+        // Constructor
+        instruccion (vector<string> _tokens, int _i_linea) : tokens (_tokens)
+        {   
+            if (gl_instrucciones.find(_tokens[0]) == gl_instrucciones.end())
+            {
+                throw exception_unknown_instruction(_tokens[0], _i_linea);
+            }
 
-        virtual std::string to_string () = 0;                  // Devuelve la instrucción ensamblador, legible por humanos
+            nombre = _tokens[0];
+            i_linea = _i_linea;
 
-        virtual std::string to_bin () = 0;                     // Ensambla la instrucción y la devuelve en binario, legible por la máquina
+            int nParametros = 0;
+            for (string elemento : gl_instrucciones[nombre])                  // Cuenta el número de parámetros que no sean relleno
+            {   
+                if (elemento[0] != '&')
+                {
+                    nParametros++;
+                }
+            }
 
-        std::string to_hex ()                                  // Ensambla la instrucción y la devuelve en hexadecimal, legible por la máquina
+            if (tokens.size() != nParametros)                                 // Número de parámetros incorrecto
+            {
+                exception_wrong_number_of_parameters exc (tokens[0], i_linea);
+                throw exc;
+            }
+        }
+        
+        // Devuelve la instrucción ensamblador, legible por humanos 
+        std::string to_string ()                               
+        {
+            string salida = "";
+            for (string token : tokens)
+            {
+                salida += token + " ";   
+            }
+            return salida;
+        }                  
+
+        // Ensambla la instrucción y la devuelve en binario, legible por la máquina
+        std::string to_bin ()                                  
+        {   
+            string salida = gl_instrucciones[nombre][0];
+
+            for (int str = 1, tok = 1; str < gl_instrucciones[nombre].size(); str++)
+            {   
+                if (gl_instrucciones[nombre][str].substr(0, 14) == "etiqueta_salto")             // Es una etiqueta de salto
+                {
+                    if (gl_etiquetas.find(tokens[tok]) == gl_etiquetas.end())                              // La etiqueta no existe
+                    {
+                        exception_wrong_jump_label exc (tokens[tok], i_linea);
+                        throw exc;
+                    }
+                    
+                    int direccion = gl_etiquetas[tokens[tok]];                                             // Obtiene la dirección de la etiqueta        
+                    int nBits = count (gl_instrucciones[nombre][str].begin(),                              // Número de bits de la dirección
+                                        gl_instrucciones[nombre][str].end(), 'X');                         
+                    bitset<TAMANYO_INSTRUCCION> direccionBinario {(long long unsigned int)direccion};      // Convierte el número a binario
+
+                    for (int i = nBits - 1; i >= 0; i--)
+                    {
+                        salida += direccionBinario[i] ? "1" : "0";                                         // Añade los bits correspondientes a la instrucción
+                    }
+
+                    tok++;                                                                                 // Avanza el contador de los tokens
+                }
+
+                else if (gl_instrucciones[nombre][str][0] == '&')                                // Es una constante (relleno)
+                {
+                    salida += gl_instrucciones[nombre][str].substr(1);
+                }
+
+                else                                                                             // Es un parámetro normal
+                {
+                    int inicioNumero = gl_instrucciones[nombre][str].find("X");                            // Posición del primer caracter del número
+                    int nBits = count (gl_instrucciones[nombre][str].begin(),
+                                        gl_instrucciones[nombre][str].end(), 'X');                         // Número de bits del número
+
+                    string encontrado = tokens[tok].substr(0, inicioNumero);
+                    string esperado = gl_instrucciones[nombre][str].substr(0, inicioNumero);
+
+                    if (encontrado != esperado)                                                            // Nombre del parámetro incorrecto
+                    {
+                        exception_wrong_instruction_syntax exc (tokens[0], i_linea, encontrado, esperado);
+                        throw exc;
+                    }
+
+                    string numero = tokens[tok].substr(inicioNumero);                                      // Quita los caracteres no numéricos
+                    bitset<TAMANYO_INSTRUCCION> numeroBinario {(long long unsigned int)stoi(numero)};      // Convierte el número a binario
+
+                    for (int i = nBits - 1; i >= 0; i--)
+                    {
+                        salida += numeroBinario[i] ? "1" : "0";                                            // Añade los bits correspondientes a la instrucción
+                    }
+
+                    tok++;                                                                                 // Avanza el contador de los tokens
+                }
+            }
+
+            return salida;
+        }
+
+        // Ensambla la instrucción y la devuelve en hexadecimal, legible por la máquina
+        std::string to_hex ()                                  
         {
             return binSToHex (this->to_bin());
         }
 };
 
-class ADD : public instruccion
+
+
+// Tokeniza un string separado por espacios en un vector de strings
+void stringToVector (string s, vector<string> &vect)
 {
-    private:
-
-        const std::string operacion = "ADD";           // Nombre de la instrucción
-
-        // Formato de instrucción
-        const bitset<6> operacionBin {"000001"};       // Código de la instrucción
-        bitset<5> rdBin;                               // Registro destino, en binario
-        bitset<5> raBin;                               // Registro origen a, en binario
-        bitset<5> rbBin;                               // Registro origen b, en binario
-        const bitset<11> rellenoBin {0};               // Relleno
-
-    public:
-
-        ADD (string ra, string rb, string rd) : rdBin {stoi(rd.substr(1))},                                     // Elimina la r inicial y lo convierte a int (r1 -> 1)
-                                                    raBin {stoi(ra.substr(1))}, 
-                                                    rbBin {stoi(rb.substr(1))} {}
-
-        std::string to_string ()                                                                                // Devuelve la instrucción ensamblador, legible por humanos
-        {
-            return operacion + " r" + std::to_string(raBin.to_ulong()) + " r" + std::to_string(rbBin.to_ulong()) +  + " r" + std::to_string(rdBin.to_ulong());
-        }
-
-        std::string to_bin ()                                                                                   // Ensambla la instrucción y la devuelve en binario, legible por la máquina
-        {
-            return operacionBin.to_string() + raBin.to_string() + rbBin.to_string() + rdBin.to_string() + rellenoBin.to_string();
-        }
-};
-
-class MOV : public instruccion
-{
-    private:
-
-        const std::string operacion = "MOV";           // Nombre de la instrucción
-
-        // Formato de instrucción
-        const bitset<6> operacionBin {"000000"};       // Código de la instrucción
-        bitset<5> rbBin;                               // Registro destino, en binario
-        bitset<16> kBin;                               // Constante de la instrucción
-        const bitset<5> rellenoBin {0};                // Relleno
-
-    public:
-
-        MOV (string rd, string k) : rbBin {stoi(rd.substr(1))},                             // Elimina la r inicial y lo convierte a int (r1 -> 1)
-                                                        kBin {stoi(k.substr(1))}            // Elimina el # inicial y lo convierte a int
-                                                        {}
-        std::string to_string ()                                                            // Devuelve la instrucción ensamblador, legible por humanos
-        {
-            return operacion + " r" + std::to_string(rbBin.to_ulong()) + " #" + std::to_string(kBin.to_ulong());
-        }
-
-        std::string to_bin ()                                                               // Ensambla la instrucción y la devuelve en binario, legible por la máquina
-        {
-            return operacionBin.to_string() + rellenoBin.to_string() + rbBin.to_string() + kBin.to_string();
-        }
-};
-
-class LW : public instruccion
-{
-    private:
-
-        const std::string operacion = "LW";             // Nombre de la instrucción
-
-        //Formato de la instrucción
-        const bitset<6> operacionBin {"000010"};
-        bitset<5> rbBin;                                // Registro destino
-        bitset<5> raBin;                                // Registro con la dirección de memoria de la que se va a leer
-        const bitset<16> rellenoBin {0};                // Relleno
-
-    public:
-
-        LW (string ra, string rb) : raBin {stoi(ra.substr(1))}, rbBin {stoi(rb.substr(1))} {}
-
-        std::string to_string ()                                                                             // Devuelve la instrucción ensamblador, legible por humanos
-        {
-            return operacion + " r" + std::to_string(raBin.to_ulong()) + " r" + std::to_string(rbBin.to_ulong());
-        }
-
-        std::string to_bin ()                                                                                // Ensambla la instrucción y la devuelve en binario, legible por la máquina
-        {
-            return operacionBin.to_string() + raBin.to_string() + rbBin.to_string() + rellenoBin.to_string();
-        }
-};
-
-class BEQ : public instruccion
-{
-    private:
-
-        const std::string operacion = "BEQ";           // Nombre de la instrucción
-
-        // Formato de instrucción
-        const bitset<6> operacionBin {"000100"};       // Código de la instrucción
-        bitset<5> raBin;                               // Registro de origen a en binario
-        bitset<5> rbBin;                               // Registro de origen b en binario
-
-        string etiqueta;                               // Etiqueta de la instrucción
-        bitset<16> kBin;                               // Dirección de salto de la instrucción
-
-    public:
-
-        BEQ (string ra, string rb, string _etiqueta) : raBin {stoi(ra.substr(1))},             // Elimina la r inicial y lo convierte a int (r1 -> 1)
-                                                        rbBin {stoi(rb.substr(1))},            // Elimina el # inicial y lo convierte a int
-                                                        etiqueta {_etiqueta}                   // Crea la etiqueta
-                                                        {}
-
-        std::string to_string ()                                                               // Devuelve la instrucción ensamblador, legible por humanos
-        {
-            return operacion + " r" + std::to_string(raBin.to_ulong()) + " r" + std::to_string(rbBin.to_ulong()) + etiqueta;
-        }
-
-        std::string to_bin ()                                                                  // Ensambla la instrucción y la devuelve en binario, legible por la máquina
-        {   
-            kBin = g_etiquetas[etiqueta];                                                      // Obtiene la dirección de salto de la etiqueta                       
-            return operacionBin.to_string() + raBin.to_string() + rbBin.to_string() + kBin.to_string();
-        }
-};
-
-class SW : public instruccion
-{
-    private:
-
-        const std::string operacion = "SW";             // Nombre de la instrucción
-
-        //Formato de la instrucción
-        const bitset<6> operacionBin {"000011"};
-        bitset<5> raBin;                                // Registro destino
-        bitset<5> rbBin;                                // Registro con la dirección de memoria de la que se va a leer
-        const bitset<16> rellenoBin {0};                // Relleno
-
-    public:
-
-        SW (string ra, string rb) : raBin {stoi(ra.substr(1))}, rbBin {stoi(rb.substr(1))} {}
-
-        std::string to_string ()                                                                             // Devuelve la instrucción ensamblador, legible por humanos
-        {
-            return operacion + " r" + std::to_string(raBin.to_ulong()) + " r" + std::to_string(rbBin.to_ulong());
-        }
-
-        std::string to_bin ()                                                                                // Ensambla la instrucción y la devuelve en binario, legible por la máquina
-        {
-            return operacionBin.to_string() + raBin.to_string() + rbBin.to_string() + rellenoBin.to_string();
-        }
-};
-
-class NOP : public instruccion
-{
-    private:
-
-        const std::string operacion = "NOP";            // Nombre de la instrucción
-
-        //Formato de la instrucción
-        const bitset<6> operacionBin {"000101"};
-        const bitset<26> rellenoBin {0};                // Relleno
-
-    public:
-
-        NOP (string ra) {}
-
-        std::string to_string ()                                                                             // Devuelve la instrucción ensamblador, legible por humanos
-        {
-            return operacion;
-        }
-
-        std::string to_bin ()                                                                                // Ensambla la instrucción y la devuelve en binario, legible por la máquina
-        {
-            return operacionBin.to_string() + rellenoBin.to_string();
-        }
-};
-
-
-// Factoría de instrucciones
-// nParametros es el número de parámetros que contiene el vector (incluido el nombre de la instrucción)
-
-instruccion* crearInst (string parametros[MAX_PARAMETROS], int nParametros, int i_linea)
-{
-    if (parametros[0] == "ADD")                                                 // ADD
+    stringstream ss (s);
+    string token;
+    while (getline (ss, token, ' '))
     {
-        if (nParametros == 4)
-        {
-            return new ADD (parametros[1], parametros[2], parametros[3]);
-        }
-        else
-        {
-            exception_wrong_number_of_parameters exc;
-            exc.instruction = parametros [0];
-            exc.linea = i_linea;
-            throw exc;
-        }
+        vect.push_back (token);
     }
-    else if (parametros[0] == "MOV")                                            // MOV
-    {
-        if (nParametros == 3)
-        {
-            return new MOV (parametros[1], parametros[2]);
-        }
-        else
-        {
-            exception_wrong_number_of_parameters exc;
-            exc.instruction = parametros [0];
-            exc.linea = i_linea;
-            throw exc;
-        }
-    }
-    else if (parametros[0] == "LW")                                             // LW
-    {
-        if (nParametros == 3)
-        {
-            return new LW (parametros[1], parametros[2]);
-        }
-        else
-        {
-            exception_wrong_number_of_parameters exc;
-            exc.instruction = parametros [0];
-            exc.linea = i_linea;
-            throw exc;
-        }
-    }
-    else if (parametros[0] == "BEQ")                                            // BEQ
-    {
-        if (nParametros == 4)
-        {
-            return new BEQ (parametros[1], parametros[2], parametros[3]);
-        }
-        else
-        {
-            exception_wrong_number_of_parameters exc;
-            exc.instruction = parametros [0];
-            exc.linea = i_linea;
-            throw exc;
-        }
-    }
-    else if (parametros[0] == "SW")                                            // BEQ
-    {
-        if (nParametros == 3)
-        {
-            return new SW (parametros[1], parametros[2]);
-        }
-        else
-        {
-            exception_wrong_number_of_parameters exc;
-            exc.instruction = parametros [0];
-            exc.linea = i_linea;
-            throw exc;
-        }
-    }
-    else if (parametros[0] == "NOP")                                            // BEQ
-    {
-        if (nParametros >= 1)
-        {
-            return new NOP (parametros[1]);
-        }
-        else
-        {
-            exception_wrong_number_of_parameters exc;
-            exc.instruction = parametros [0];
-            exc.linea = i_linea;
-            throw exc;
-        }
-    }
-    else                                                                        // Error
-    {
-        exception_wrong_instruction_syntax exc;
-        throw exc;
-    }
-}
+}	
+
 
 
 
 int main(int argc, char * argv[])
 {
-    ifstream f_entrada;
+    ifstream f_entrada, f_config;
     ofstream f_salida;
 
-    if (argc == 3)                            // Se ha introducido un parámetro
+    if (argc == 4)                            // Se ha introducido un parámetro
     {
-        f_entrada.open(argv[1]);              // Fichero de entrada
-        f_salida.open(argv[2]);               // Fichero de salida      
+        f_entrada.open(argv[2]);              // Fichero de entrada
+        f_salida.open(argv[3]);               // Fichero de salida    
+        f_config.open(argv[1]);               // Fichero de configuración  
 
-        if (f_entrada.is_open() && f_salida.is_open())                  // El fichero existía
+        if (f_entrada.is_open() && f_salida.is_open() && f_config.is_open())                  // El fichero existía
         {
+            string linea;                                                       // Variable de lectura
+
+            getline (f_config, linea);                                          // Lee la primera línea del fichero de configuración
+
             try
             {
-                string linea, param[MAX_PARAMETROS];                        // Variables para leer y tokenizar la instrucción
+                if (linea == "HEX")                                             // Salida en hexadecimal
+                {
+                    HEX_OUT = true;
+                }
+                else if (linea == "BIN")                                        // Salida en binario
+                {
+                    HEX_OUT = false;
+                }
+                else                                                            // Sintaxis incorrecta
+                {
+                    exception_wrong_config_syntax exc ("La primera linea debe ser HEX o BIN");
+                    throw exc;
+                }
+
+                getline (f_config, linea);                                      // Lee la segunda línea del fichero de configuración
+
+                if (linea == "LOGISIM_OUT")                                     // Activa la salida para logisim
+                {
+                    LOGISIM_OUT = true;
+                    getline (f_config, linea);                                  // Lee la siguiente línea del fichero de configuración
+                }
+                else
+                {
+                    LOGISIM_OUT = false;
+                }
+
+                while (!f_config.eof())
+                {
+                    int pos1 = linea.find("<");                                                                              // Posición del inicio de los bits de instrucción
+                    int pos2 = linea.find(">");                                                                              // Posición del final de los bits de instrucción
+                    string nombre = linea.substr(0, pos1);                                                                   // Nombre de la instrucción
+                    string bits = linea.substr(pos1 + 1, pos2 - (pos1 + 1));                                                 // Bits de la instrucción
+
+                    vector<string> estructura;                                                                               // Vector de tokens de la instrucción
+                    bits = bits + linea.substr(pos2 + 1);                                                                    // Añade los bits de la instrucción
+
+                    stringToVector(bits, estructura);                                                                        // Tokeniza la estructura de la instrucción
+                    gl_instrucciones [nombre] = estructura;                                                                  // Añade la estructura a la tabla de instrucciones
+                    getline (f_config, linea);                                                                               // Lee la siguiente línea del fichero de configuración
+                }
+
+
+
+                // Comienza la lectura y tokenizado del código
+
+                vector<string> param;                                       // Variables tokenizar la instrucción
                 string etiqueta;                                            // Variable para leer etiquetas de salto
                 string salida;                                              // Variable para almacenar la instrucción ya traducida a binario
                 bool vacio;                                                 // Finaliza el bucle de tokenizado de parámetros, cuando la instrucción tiene menos de MAX_PARAMETROS
                 int i_PC = 0;                                               // Lleva la cuenta del número de línea para almacenar etiquetas de salto
-                int posEspacio;                                             // Lleva la cuenta del número de línea para almacenar etiquetas de salto
+                int posEspacio;                                             // Variable auxiliar para tokenizar la instrucción
+                int i_numLinea = 0;                                         // Lleva la cuenta del número de línea para mostrar errores
                 list <instruccion*> codigo;                                 // Lista de instrucciones del repertorio
-
-
-                if (LOGISIM_OUT)                                            // Imprime la cabecera de memoria de logisim
-                {
-                    f_salida << "v2.0 raw\n";
-                }
 
                 getline (f_entrada, linea);                                 // Lee la primera línea
 
                 while (!f_entrada.eof())
                 {
+                    i_numLinea++;
+
                     if (linea != "" && linea.find(" ") != -1)                          // Es una instrucción 
                     {
                         vacio = false;
@@ -418,7 +402,7 @@ int main(int argc, char * argv[])
                         for ( ; !vacio; nParametros++)                                 // Mientras queden parámetros
                         {
                             posEspacio = linea.find(" ");
-                            param [nParametros] = linea.substr(0, posEspacio);         // Almacena el parámetro hasta el primer espacio
+                            param.push_back(linea.substr(0, posEspacio));              // Almacena el parámetro hasta el primer espacio
                             
                             if (posEspacio != -1)                                      // Quedan parámetros
                             {
@@ -428,20 +412,30 @@ int main(int argc, char * argv[])
                             {
                                 vacio = true;
                             }
-                        }      
+                        }    
 
-                        instruccion* inst = crearInst (param, nParametros, i_PC);      // Crea la instrucción
-                        codigo.push_back(inst);                                        // Añade la instrucción a la lista de instrucciones
+                        instruccion* inst = new instruccion (param, i_numLinea);       // Crea la instrucción
+                        codigo.push_back(inst);                                        // Añade la instrucción al código
+                        param.clear();                                                 // Limpia el vector de parámetros
 
                         i_PC++;                                                        // Incrementa el contador de instrucción (Para etiquetas de salto)
                     }   
                     else if (linea != "")                                   // Es una etiqueta de salto
                     {
                         etiqueta = linea; 
-                        g_etiquetas[etiqueta] = i_PC;                                  // Almacenar par (etiqueta, i_PC)                                    
+                        gl_etiquetas[etiqueta] = i_PC;                                  // Almacenar par (etiqueta, i_PC)                                    
                     }
 
-                    getline (f_entrada, linea);                                        // Lee la siguiente línea
+                    getline (f_entrada, linea);                                         // Lee la siguiente línea
+                }
+
+
+
+                // Comienza el ensamblado
+
+                if (LOGISIM_OUT)                                            // Imprime la cabecera de memoria de logisim
+                {
+                    f_salida << "v2.0 raw\n";
                 }
 
                 for (instruccion *inst : codigo)                            // Recorre la lista de instrucciones
@@ -466,13 +460,9 @@ int main(int argc, char * argv[])
                     }
                 }
             }
-            catch (exception_wrong_instruction_syntax& e)
+            catch (const exception& e)
             {
-                cout << "Sintaxis incorrecta en la línea: " << e.linea << endl << "Se encontró: " << e.instruction << endl;
-            }
-            catch (exception_wrong_number_of_parameters& e)
-            {
-                cout << "Número de parámetros incorrecto en la instrucción: " << e.instruction << ", línea: " << e.linea << endl;
+                cout << e.what() << endl;
             }
         }
         else            // Fichero incorrecto 
@@ -482,6 +472,6 @@ int main(int argc, char * argv[])
     }
     else                // Parámetros incorrectos
     {
-        cerr << "Invocar como: ./cumpilador.exe fichero_entrada fichero_salida" << endl;
+        cerr << "Invocar como: ./cumpilador.exe fichero_config fichero_entrada fichero_salida" << endl;
     }
 }
