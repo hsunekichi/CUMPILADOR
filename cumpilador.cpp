@@ -7,6 +7,8 @@
  * En la primera línea deberá poner BIN o HEX, dependiendo de la salida deseada.
  * Si la segunda línea es LOGISIM_OUT (puede no serlo), la salida tendrá sintaxis logisim
  * Si la segunda línea es VHDL_OUT (puede no serlo), la salida tendrá sintaxis VHDL
+ * Si la segunda línea (si no hay ni VHDL_OUT ni LOGISIM_OUT) o la tercera (si aparece uno de ellos) línea es SALTO_RELATIVO
+ *      las direcciones de salto se calcularán relativas a PC 
  * 
  * Primero va el nombre de la instrucción, con su codificación entre < >.
  * Tras ello van los parámetros. Las **** tras una palabra son bits indeterminados que 
