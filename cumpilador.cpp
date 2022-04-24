@@ -199,7 +199,15 @@ string binToHex (bitset<TAMANYO_INSTRUCCION> binario)
 {
     stringstream hexadecimal;
     hexadecimal << hex << uppercase << binario.to_ulong();
-    return hexadecimal.str();
+    string salida = hexadecimal.str();
+
+    if (salida.size() < TAMANYO_INSTRUCCION / 4)
+        salida = string(TAMANYO_INSTRUCCION / 4 - salida.size(), '0') + salida;
+    
+    if (TAMANYO_INSTRUCCION % 4 != 0)
+        salida = "0" + salida;
+
+    return salida;
 }
 
 
@@ -210,7 +218,16 @@ string binSToHex (string binarioString)
     bitset<TAMANYO_INSTRUCCION> binario {binarioString};
     stringstream hexadecimal;
     hexadecimal << hex << uppercase << binario.to_ulong();
-    return hexadecimal.str();
+    
+    string salida = hexadecimal.str();
+
+    if (salida.size() < TAMANYO_INSTRUCCION / 4)
+        salida = string(TAMANYO_INSTRUCCION / 4 - salida.size(), '0') + salida;
+
+    if (TAMANYO_INSTRUCCION % 4 != 0)
+        salida = "0" + salida;
+
+    return salida;
 }
 
 
