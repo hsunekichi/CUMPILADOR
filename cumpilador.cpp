@@ -75,9 +75,10 @@ using namespace std;
 
 
 
-bool gl_hex_out = 0;                                 // Da la salida en hexadecimal en lugar de en binario
-bool gl_logisim_out = 0;                             // Imprime la salida en un formato compatible con la rom de logisim
-bool gl_vhdl_out = 0;                                // Imprime la salida en un formato compatible con las memorias VHDL
+bool gl_hex_out;                                     // Da la salida en hexadecimal en lugar de en binario
+bool gl_logisim_out;                                 // Imprime la salida en un formato compatible con la rom de logisim
+bool gl_vhdl_out;                                    // Imprime la salida en un formato compatible con las memorias VHDL
+bool gl_salto_relativo;                              // Si se habilita, los saltos se calcularán relativos a PC
 const int TAMANYO_INSTRUCCION = 32;                  // Tamaño de una instrucción en bits
 
 const char CH_VARIABLE_CONFIG = '*';                 // Caracter que indica un dato variable en configuración
@@ -247,11 +248,12 @@ class instruccion
         bitset<TAMANYO_INSTRUCCION> instruccionBinario;        // Instrucción final en binario
         vector<string> tokens;                                 // Vector con los tokens de entrada de la instrucción
         int i_linea;                                           // Número de línea de la instrucción
-
+        int i_PC;                                              // Número de PC de la instrucción
+    
     public:
         
         // Constructor
-        instruccion (vector<string> _tokens, int _i_linea) : tokens (_tokens)
+        instruccion (vector<string> _tokens, int _i_linea, int _i_PC) : tokens (_tokens)
         {   
             if (gl_instrucciones.find(_tokens[0]) == gl_instrucciones.end())
             {
@@ -260,6 +262,7 @@ class instruccion
 
             nombre = _tokens[0];
             i_linea = _i_linea;
+            i_PC = _i_PC;
 
             int nParametros = 0;
             for (string elemento : gl_instrucciones[nombre])                  // Cuenta el número de parámetros que no sean relleno
@@ -305,8 +308,14 @@ class instruccion
                             exception_wrong_label exc (tokens[tok], i_linea);
                             throw exc;
                         }
-
-                        direccion = gl_etiquetas[tokens[tok]];                                                // Obtiene la dirección de la etiqueta        
+                        if (gl_salto_relativo)
+                        {
+                            direccion = gl_etiquetas[tokens[tok]] - i_PC;                                     // Dirección relativa a la instrucción
+                        }
+                        else
+                        {
+                            direccion = gl_etiquetas[tokens[tok]];                                            // Obtiene la dirección de la etiqueta 
+                        }                                               
                     }
                     else direccion = to_decimal(tokens[tok].erase(0, 1));                                     // Obtiene la dirección del número
 
@@ -429,16 +438,24 @@ int main(int argc, char * argv[])
                     gl_logisim_out = true;
                     getline (f_config, linea);                                  // Lee la siguiente línea del fichero de configuración
                 }
-                else if (linea == "VHDL_OUT")
+                else
+                    gl_logisim_out = false;
+
+                if (linea == "VHDL_OUT")                                        // Activa la salida para VHDL
                 {
                     gl_vhdl_out = true;
                     getline (f_config, linea);                                  // Lee la siguiente línea del fichero de configuración
                 }
-                else                                                            // Caso por defecto
-                {   
-                    gl_logisim_out = false;
+                else 
                     gl_vhdl_out = false;
+
+                if (linea == "SALTO_RELATIVO")                                  // Activa los saltos relativos a PC
+                {
+                    gl_salto_relativo = true;
+                    getline (f_config, linea);                                  // Lee la siguiente línea del fichero de configuración
                 }
+                else
+                    gl_salto_relativo = false;
 
                 while (!f_config.eof())
                 {
@@ -523,7 +540,7 @@ int main(int argc, char * argv[])
                             else vacio = true;
                         }    
 
-                        instruccion* inst = new instruccion (param, i_numLinea);       // Crea la instrucción
+                        instruccion* inst = new instruccion (param, i_numLinea, i_PC);       // Crea la instrucción
                         codigo.push_back(inst);                                        // Añade la instrucción al código
                         param.clear();                                                 // Limpia el vector de parámetros
 
