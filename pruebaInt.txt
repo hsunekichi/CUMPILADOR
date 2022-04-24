@@ -1,0 +1,7 @@
+LW rs1 rt1 #0
+LW rs0 rt2 #4
+
+inm
+ADD rs1 rt2 rd3
+SW rs0 rt3 #8
+beq rs0 rt0 inm 

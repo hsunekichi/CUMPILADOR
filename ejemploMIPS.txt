@@ -1,0 +1,13 @@
+direccion_NIP=0x10
+pantalla=0xffff
+
+LWFP rs1 rt0 #0
+ADDFP rs1fp rt1fp rd2fp
+SW rs2 rt0 #4
+
+fin
+SUB rs1 rt1 rd0
+ADDFP rs0fp rt0fp rd2fp
+
+
+BEQ rs0 rt0 fin
