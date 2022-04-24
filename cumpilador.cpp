@@ -376,9 +376,9 @@ class instruccion
 
                     if (encontrado != esperado || encontradoFinal != esperadoFinal)                           // Nombre del parámetro incorrecto
                     {
-                        if (esperadoFinal != "")
+                        if (esperadoFinal != "" || encontradoFinal != "")
                         {
-                            exception_wrong_instruction_syntax exc (tokens[0], i_linea, encontrado, esperado + "*" + esperadoFinal);
+                            exception_wrong_instruction_syntax exc (tokens[0], i_linea, tokens[tok], esperado + "*" + esperadoFinal);
                             throw exc;
                         }
                         exception_wrong_instruction_syntax exc (tokens[0], i_linea, encontrado, esperado);
