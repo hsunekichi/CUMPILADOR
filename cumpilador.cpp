@@ -21,6 +21,7 @@
  * Si la línea comienza con & se considerará se definirá como una palabra especial que se sustituirá automáticamente por aquello que haya en tras el igual.
  * Al programar:
  * Una línea sin espacios será una etiqueta.
+ * Cuando aparezca un ';' se descartará el resto de la línea (comentarios).
  * Si una etiqueta tiene un =, se le asignará el valor que la siga.
  * Si no tiene un = se le asignará la posición de la siguiente instrucción válida (se obvian todas las etiquetas).
  * Por tanto, toda instrucción tiene que tener al menos un parámetro además del nombre.
@@ -542,39 +543,45 @@ int main(int argc, char * argv[])
                 {
                     i_numLinea++;                                           // Incrementa el número de línea
 
-                    if (linea != "" && linea.find(" ") != -1)                          // Es una instrucción 
+                    linea.find(";") != string::npos ?                       // Busca un comentario
+                        linea = linea.substr(0, linea.find(";"))            // Elimina el comentario
+                        :   
+                        linea;                                              // No hay un comentario
+
+                    if (linea != "" && linea.find(" ") != -1)                           // Es una instrucción 
                     {
                         vacio = false;
 
-                        int nParametros = 0;                                           // Número de parámetros de la instrucción
-                        for ( ; !vacio; nParametros++)                                 // Mientras queden parámetros
+                        int nParametros = 0;                                                // Número de parámetros de la instrucción
+                        for ( ; !vacio; nParametros++)                                      // Mientras queden parámetros
                         {
-                            posEspacio = linea.find(" ");
-                            param.push_back(linea.substr(0, posEspacio));              // Almacena el parámetro hasta el primer espacio
+                            posEspacio = linea.find(" ");                                   // Posición del espacio                            
+                            param.push_back( linea.substr(0, posEspacio));                  // Almacena el parámetro hasta el primer espacio
                             
-                            if (posEspacio != -1)                                      // Quedan parámetros
+                            if (posEspacio != -1)                                           // Quedan parámetros
                             {
-                                linea.erase(0, posEspacio + 1);                        // Elimina todo hasta el primer espacio, incluido
+                                linea.erase(0, posEspacio + 1);                             // Elimina todo hasta el primer espacio, incluido
+                                linea.erase(0, linea.find_first_not_of(" "));               // Elimina los espacios en blanco
                             }
-                            else vacio = true;
+                            else 
+                                vacio = true;
                         }    
 
-                        instruccion* inst = new instruccion (param, i_numLinea, i_PC);       // Crea la instrucción
-                        codigo.push_back(inst);                                        // Añade la instrucción al código
-                        param.clear();                                                 // Limpia el vector de parámetros
+                        instruccion* inst = new instruccion (param, i_numLinea, i_PC);      // Crea la instrucción
+                        codigo.push_back(inst);                                             // Añade la instrucción al código
+                        param.clear();                                                      // Limpia el vector de parámetros
 
-                        i_PC++;                                                        // Incrementa el contador de instrucción (Para etiquetas de salto)
+                        i_PC++;                                                             // Incrementa el contador de instrucción (Para etiquetas de salto)
                     }   
                     else if (linea != "")                                   // Es una etiqueta de salto
                     {
                         if (linea.find('=') != -1)                                     // Almacena el valor de la etiqueta
-                        {
-                            gl_etiquetas[linea.substr(0, linea.find('='))] = to_decimal(linea.substr(linea.find('=') + 1));
-                        }
+                            gl_etiquetas[linea.substr(0, linea.find('='))] 
+                            = 
+                            to_decimal(linea.substr(linea.find('=') + 1));
+
                         else
-                        {
-                            gl_etiquetas[linea] = i_PC;                                // Almacena la posición de la etiqueta
-                        }                        
+                            gl_etiquetas[linea] = i_PC;                                // Almacena la posición de la etiqueta                     
                     }
 
                     getline (f_entrada, linea);                                        // Lee la siguiente línea
