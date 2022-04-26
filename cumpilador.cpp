@@ -1,13 +1,14 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *
  * Hecho por: Hugo Mateo
- * Última revisión: 24/04/2022
+ * Última revisión: 26/04/2022
  * 
  * Sintaxis de la configuración ASM: 
  * En la primera línea deberá poner BIN o HEX, dependiendo de la salida deseada.
  * Si la segunda línea es LOGISIM_OUT (puede no serlo), la salida tendrá sintaxis logisim
  * Si la segunda línea es VHDL_OUT (puede no serlo), la salida tendrá sintaxis VHDL
  * Si la segunda línea (si no hay ni VHDL_OUT ni LOGISIM_OUT) o la tercera (si aparece uno de ellos) línea es SALTO_RELATIVO
+ *      los parámetros de configuración que comiencen por ## serán saltos relativos a PC
  *      las direcciones de salto se calcularán relativas a PC 
  * 
  * Primero va el nombre de la instrucción, con su codificación entre < >.
@@ -31,12 +32,13 @@
  * 
  *     HEX
  *     LOGISIM_OUT
+ *     SALTO_RELATIVO
  *     
  *     &ADD_CODE=&00001 
  *    
  *     ADDFP<000000> rs*****fp rt*****fp rd*****fp &000000 &ADD_CODE 
  *     MOV<000001> rXXXXX &00000 #XXXXXXXXXXXXXXXX
- *     BEQ<000011> rXXXXX rXXXXX #XXXXXXXXXXXXXXXX  
+ *     BEQ<000011> rXXXXX rXXXXX ##XXXXXXXXXXXXXXXX  
  *     ST<000100> rDatXXXXX rDirXXXXX &0000000000000000  
  * 
  * fichero programa:
@@ -51,7 +53,9 @@
  *     fin
  *     BEQ r0 r0 fin
  * 
- * ------------------ ADVERTENCIA: La última línea de todos los ficheros debe terminar en \n, si no se perderá la línea --------------------
+ * ------------------ ADVERTENCIA: La última línea de todos los ficheros debe terminar en \n, si no se perderá la línea -------------------- 
+ *                                 En las etiquetas se deben separar los comentarios del código con '\t', o se confundirá con una instrucción
+ *                                 Funciona en linux y en windows, pero cuidado con usar un txt de windows en linux y viceversa
  * 
  * NOTA: Los bits de tamaño de instrucción totales deben definirse antes de la compilación
  * 
@@ -329,7 +333,7 @@ class instruccion
                             throw exc;
                         }
 
-                        if (gl_salto_relativo)
+                        if (gl_salto_relativo && gl_instrucciones[nombre][str][1] == CH_ETIQUETA_CONFIG)
                         {
                             direccion = gl_etiquetas[tokens[tok]] - (i_PC + 1);                               // Dirección relativa a la instrucción
                         }
@@ -548,7 +552,7 @@ int main(int argc, char * argv[])
                         :   
                         linea;                                              // No hay un comentario
 
-                    if (linea != "" && linea.find(" ") != -1)                           // Es una instrucción 
+                    if (linea != "" && linea.find(" ") != -1)                   // Es una instrucción 
                     {
                         std::replace( linea.begin(), linea.end(), '\t', ' ');               // Elimina los tabuladores
                         stringstream ss (linea);                                            // Convierte la línea en un flujo de datos
@@ -564,7 +568,7 @@ int main(int argc, char * argv[])
 
                         i_PC++;                                                             // Incrementa el contador de instrucción (Para etiquetas de salto)
                     }   
-                    else if (linea != "")                                   // Es una etiqueta de salto
+                    else if (linea != "")                                       // Es una etiqueta de salto
                     {
                         if (linea.find('=') != -1)                                     // Almacena el valor de la etiqueta
                             gl_etiquetas[linea.substr(0, linea.find('='))] 
