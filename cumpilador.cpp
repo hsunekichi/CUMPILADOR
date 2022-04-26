@@ -328,9 +328,10 @@ class instruccion
                             exception_wrong_label exc (tokens[tok], i_linea);
                             throw exc;
                         }
+
                         if (gl_salto_relativo)
                         {
-                            direccion = gl_etiquetas[tokens[tok]] - i_PC;                                     // Dirección relativa a la instrucción
+                            direccion = gl_etiquetas[tokens[tok]] - (i_PC + 1);                               // Dirección relativa a la instrucción
                         }
                         else
                         {
