@@ -532,7 +532,6 @@ int main(int argc, char * argv[])
 
                 vector<string> param;                                       // Variable para tokenizar la instrucción
                 string salida;                                              // Variable para almacenar la instrucción ya traducida a binario
-                bool vacio;                                                 // Finaliza el bucle de tokenizado de parámetros, cuando la instrucción tiene menos de MAX_PARAMETROS
                 int i_PC = 0;                                               // Lleva la cuenta del número de línea para almacenar etiquetas de salto
                 int posEspacio;                                             // Variable auxiliar para tokenizar la instrucción
                 int i_numLinea = 0;                                         // Lleva la cuenta del número de línea para mostrar errores
@@ -551,22 +550,13 @@ int main(int argc, char * argv[])
 
                     if (linea != "" && linea.find(" ") != -1)                           // Es una instrucción 
                     {
-                        vacio = false;
+                        std::replace( linea.begin(), linea.end(), '\t', ' ');               // Elimina los tabuladores
+                        stringstream ss (linea);                                            // Convierte la línea en un flujo de datos
+                        string token;                                                       // Variable para almacenar el token
 
-                        int nParametros = 0;                                                // Número de parámetros de la instrucción
-                        for ( ; !vacio; nParametros++)                                      // Mientras queden parámetros
-                        {
-                            posEspacio = linea.find(" ");                                   // Posición del espacio                            
-                            param.push_back( linea.substr(0, posEspacio));                  // Almacena el parámetro hasta el primer espacio
-                            
-                            if (posEspacio != -1)                                           // Quedan parámetros
-                            {
-                                linea.erase(0, posEspacio + 1);                             // Elimina todo hasta el primer espacio, incluido
-                                linea.erase(0, linea.find_first_not_of(" "));               // Elimina los espacios en blanco
-                            }
-                            else 
-                                vacio = true;
-                        }    
+                        while (getline(ss, token, ' '))
+                            if (token != "")
+                                param.push_back(token);
 
                         instruccion* inst = new instruccion (param, i_numLinea, i_PC);      // Crea la instrucción
                         codigo.push_back(inst);                                             // Añade la instrucción al código
@@ -592,37 +582,40 @@ int main(int argc, char * argv[])
 
                 // Comienza el ensamblado
 
-                if (gl_logisim_out)                                            // Imprime la cabecera de memoria de logisim
+                if (gl_logisim_out)                                                    // Imprime la cabecera de memoria de logisim
                 {
                     f_salida << "v2.0 raw\n";
                 }
                 
-                int contador = 0;                                           // Contador de instrucciones
-                for (instruccion *inst : codigo)                            // Recorre la lista de instrucciones
+                int contador = 0;                                                      // Contador de instrucciones
+                for (instruccion *inst : codigo)                                       // Recorre la lista de instrucciones
                 {   
                     if (gl_hex_out)
                     {
-                        salida = inst->to_hex();                            // Traduce la instrucción a hexadecimal
+                        salida = inst->to_hex();                                       // Traduce la instrucción a hexadecimal
                     }
                     else
                     {
-                        salida = inst->to_bin();                            // Traduce la instrucción a binario
+                        salida = inst->to_bin();                                       // Traduce la instrucción a binario
                     }
 
                     // Imprime la instrucción en la salida
-                    if (gl_logisim_out)                       // Código para rom de logisim
+                    if (gl_logisim_out)                                                // Código para rom de logisim
                         f_salida << salida << " ";
 
                     else if (gl_vhdl_out)
                         f_salida << "X\"" << salida << "\", ";
 
-                    else                                                    // Código estándar
+                    else                                                               // Código estándar
                         f_salida << salida << endl;
 
-                    if (contador == 7 && (gl_logisim_out || gl_vhdl_out))          // Si se ha alcanzado el número máximo de instrucciones por línea
+                    if (contador == 7 && (gl_logisim_out || gl_vhdl_out))              // Si se ha alcanzado el número máximo de instrucciones por línea
+                    {
                         f_salida << endl;
-
-                    contador++;                                             // Incrementa el contador de instrucciones
+                        contador = 0;
+                    }
+                    else
+                        contador++;                                                    // Incrementa el contador de instrucciones
                 }
             }
             catch (const exception& e)
