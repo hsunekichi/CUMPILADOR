@@ -627,10 +627,15 @@ int main(int argc, char * argv[])
                 cout << e.what() << endl;
             }
         }
-        else            // Fichero incorrecto 
-        {
+        else if (!f_config.is_open())           // Fichero de configuración incorrecto 
             cerr << "No se ha encontrado el archivo " << argv[1] << endl;
-        }
+
+        else if (!f_entrada.is_open())           // Fichero a ensamblar incorrecto 
+            cerr << "No se ha encontrado el archivo " << argv[2] << endl;
+        
+        else if (!f_config.is_open())           // No se ha podido crear o escribir el en fichero 
+            cerr << "No se ha podido escribir el fichero " << argv[3] << endl;
+            
     }
     else                // Parámetros incorrectos
     {
