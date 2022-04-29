@@ -2,6 +2,7 @@ uno=0
 direccion_NIP=0x10
 pantalla=0xffff
 
+; Este código carga un dato en flotante, lo duplica y almacena en la segunda posición de memoria. Además, lo muestra en la pantalla
 inicio
 SUB rs0 rt0 rd0                 ; Pone el r0 a 0
 LWFP rs0 rt1 direccion_NIP      ; Carga el NIP en flotante
