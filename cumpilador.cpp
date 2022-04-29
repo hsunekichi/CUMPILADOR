@@ -60,7 +60,6 @@
  * NOTA: Los bits de tamaño de instrucción totales deben definirse antes de la compilación
  * 
  *    Mejoras pendientes:
- * El compilador no admite comentarios
  * 
  *    Errores conocidos: 
  * 
