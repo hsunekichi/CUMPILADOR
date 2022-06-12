@@ -1,7 +1,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *
  * Hecho por: Hugo Mateo
- * Última revisión: 26/04/2022
+ * Última revisión: 12/06/2022
  * 
  * Sintaxis de la configuración ASM: 
  * En la primera línea deberá poner BIN o HEX, dependiendo de la salida deseada.
