@@ -39,7 +39,7 @@
  *     ADDFP<000000> rs*****fp rt*****fp rd*****fp &000000 &ADD_CODE 
  *     MOV<000001> rXXXXX &00000 #XXXXXXXXXXXXXXXX
  *     BEQ<000011> rXXXXX rXXXXX ##XXXXXXXXXXXXXXXX  
- *     ST<000100> rDatXXXXX rDirXXXXX &0000000000000000  
+ *     ST<000100> rDirXXXXX rDatXXXXX &0000000000000000  
  * 
  * fichero programa:
  *
@@ -49,7 +49,7 @@
  * 
  *     ADDFP rs1fp rt2fp rd3fp
  *     MOV r0 #'a'
- *     ST rDat1 rDir3
+ *     ST rDir1 rDat0
  *     fin
  *     BEQ r0 r0 fin
  * 
@@ -62,7 +62,7 @@
  *    Mejoras pendientes:
  * 
  *    Errores conocidos: 
- * 
+ *      Los comentarios dan problemas a veces, de momento es mejor compilar código sin ellos
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 
