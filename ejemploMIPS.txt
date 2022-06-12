@@ -1,4 +1,4 @@
-uno=0
+cero=0
 direccion_NIP=0x10
 pantalla=0xffff
 
@@ -8,7 +8,7 @@ SUB rs0 rt0 rd0                 ; Pone el r0 a 0
 LWFP rs0 rt1 direccion_NIP      ; Carga el NIP en flotante
 ADDFP rs1fp rt1fp rd2fp         ; Duplica el NIP
 SWFP rs0 rt2 #4                 ; Almacena 2*NIP en la segunda posición de memoria
-;MOVFP rs2 'a'                  ; No hay MOV en el MIPS, pero el compilador soporta esto
+;MOVFP rs2 #'a'                 ; No hay MOV en el MIPS, pero el compilador soporta esto
 SWFP rs0 rt2 pantalla           ; Almacena 2*NIP en la pantalla
 
 fin
